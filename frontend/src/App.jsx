@@ -42,18 +42,30 @@ function App() {
         return {
           ...member,
           status: "Checked Out",
-          checkedInAt: null
+          checkedOutAt: new Date()
         }
       }
 
       return {
         ...member,
         status: "Checked In",
-        checkedInAt: new Date()
+        checkedInAt: new Date(),
+        checkedOutAt: null
       }
     })
   )
 }
+
+function calculateHours(member) {
+    if (!member.checkedInAt || !member.checkedOutAt) {
+      return null
+    }
+
+    const milliseconds = member.checkedOutAt - member.checkedInAt
+    const hours = milliseconds / (1000 * 60 * 60)
+
+    return hours.toFixed(2)
+  }
 
   return (
     <div>
@@ -70,8 +82,19 @@ function App() {
     <strong>{member.name}</strong>
     <span> — {member.status}</span>
     {member.checkedInAt && (
+      <span>
+        {" "}Check in: {member.checkedInAt.toLocaleTimeString()}
+      </span>
+    )}
+
+    {member.checkedOutAt && (
+      <span>
+        {" "}Check out: {member.checkedOutAt.toLocaleTimeString()}
+      </span>
+    )}
+    {calculateHours(member) && (
   <span>
-    {" "}at {member.checkedInAt.toLocaleTimeString()}
+    {" "}Hours: {calculateHours(member)}
   </span>
 )}
     <button onClick={() => toggleStatus(member.id)}>
