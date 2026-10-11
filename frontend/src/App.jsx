@@ -4,91 +4,182 @@ import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import './App.css'
 
-const teamMembers = [
-  {
-    id: 1,
-    name: "Michael",
-    status: "Checked In",
-    checkedInAt: new Date(),
-    checkedOutAt: null
-  },
-  {
-    id: 2,
-    name: "Sarah",
-    status: "Checked In",
-    checkedInAt: new Date(),
-    checkedOutAt: null
-  },
-  {
-    id: 3,
-    name: "John",
-    status: "Checked Out",
-    checkedInAt: null,
-    checkedOutAt: null
-  }
-]
 
 function App() {
-  const [members, setMembers] = useState(teamMembers)
   const [users, setUsers] = useState([])
+  const [missions, setMissions] = useState([])
+  const [selectedMissionId, setSelectedMissionId] = useState(null)
   const [missionMembers, setMissionMembers] = useState([])
   const [missionHours, setMissionHours] = useState([])
+  const [teamMembers, setTeamMembers] = useState([])
+  const [newMissionName, setNewMissionName] = useState("")
+  const [newMissionLocation, setNewMissionLocation] = useState("")
+  const [creatingMission, setCreatingMission] = useState(false)
 
 
   useEffect(() => {
-  // Get all users
-  fetch("http://127.0.0.1:8000/users")
+  // Load missions
+  fetch("http://127.0.0.1:8000/missions")
     .then((response) => response.json())
     .then((data) => {
-      setUsers(data.users)
+      setMissions(data.missions)
+
+      if (data.missions.length > 0) {
+        setSelectedMissionId(data.missions[0].id)
+      }
     })
+    .catch((error) => {
+      console.error("Error fetching missions:", error)
+    })
+
+  // Load users
+  fetch("http://127.0.0.1:8000/users")
+    .then((response) => response.json())
+    .then((data) => setUsers(data.users))
     .catch((error) => {
       console.error("Error fetching users:", error)
     })
-
-  // Get mission 1 participation sessions
-  fetch("http://127.0.0.1:8000/missions/1/members")
-    .then((response) => response.json())
-    .then((data) => {
-      setMissionMembers(data.members)
-    })
-    .catch((error) => {
-      console.error("Error fetching mission members:", error)
-    })
-
-  // Get total hours for mission 1
-  fetch("http://127.0.0.1:8000/missions/1/hours")
-    .then((response) => response.json())
-    .then((data) => {
-      setMissionHours(data.hours)
-    })
-    .catch((error) => {
-      console.error("Error fetching mission hours:", error)
-    })
 }, [])
-  function toggleStatus(id) {
-  setMembers(
-    members.map((member) => {
-      if (member.id !== id) {
-        return member
-      }
 
-      if (member.status === "Checked In") {
-        return {
-          ...member,
-          status: "Checked Out",
-          checkedOutAt: new Date()
-        }
-      }
+// Reload mission data whenever the selected mission changes
+useEffect(() => {
+  if (selectedMissionId === null) return
 
-      return {
-        ...member,
-        status: "Checked In",
-        checkedInAt: new Date(),
-        checkedOutAt: null
-      }
-    })
+  async function loadMissionData() {
+    try {
+      const [membersResponse, hoursResponse, teamResponse] = await Promise.all([
+  fetch(
+    `http://127.0.0.1:8000/missions/${selectedMissionId}/members`
+  ),
+  fetch(
+    `http://127.0.0.1:8000/missions/${selectedMissionId}/hours`
+  ),
+  fetch(
+    `http://127.0.0.1:8000/missions/${selectedMissionId}/team`
   )
+])
+
+      if (!membersResponse.ok || !hoursResponse.ok || !teamResponse.ok) {
+        throw new Error("Failed to load mission data")
+      }
+
+      const membersData = await membersResponse.json()
+      const hoursData = await hoursResponse.json()
+      const teamData = await teamResponse.json()
+
+      setMissionMembers(membersData.members)
+      setMissionHours(hoursData.hours)
+      setTeamMembers(teamData.members)
+    } catch (error) {
+      console.error("Error loading mission:", error)
+    }
+  }
+
+  setMissionMembers([])
+  setMissionHours([])
+  setTeamMembers([])
+  loadMissionData()
+}, [selectedMissionId])
+
+  async function createMission(event) {
+  event.preventDefault()
+
+  if (!newMissionName.trim() || !newMissionLocation.trim()) {
+    return
+  }
+
+  setCreatingMission(true)
+
+  try {
+    const response = await fetch(
+      "http://127.0.0.1:8000/missions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: newMissionName.trim(),
+          location: newMissionLocation.trim(),
+          team_id: 1
+        })
+      }
+    )
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.detail || "Failed to create mission")
+    }
+
+    const newMission = data.mission
+
+    setMissions((previousMissions) => [
+      ...previousMissions,
+      newMission
+    ])
+
+    setSelectedMissionId(newMission.id)
+    setNewMissionName("")
+    setNewMissionLocation("")
+
+  } catch (error) {
+    console.error("Error creating mission:", error)
+    alert(error.message)
+  } finally {
+    setCreatingMission(false)
+  }
+}
+  async function toggleStatus(id, isCheckedIn) {
+  const action = isCheckedIn ? "check-out" : "check-in"
+
+  try {
+    const response = await fetch(
+      `http://127.0.0.1:8000/missions/${selectedMissionId}/${action}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ user_id: id })
+      }
+    )
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.detail || "Request failed")
+    }
+
+    // Reload participation records
+    const sessionsResponse = await fetch(
+      `http://127.0.0.1:8000/missions/${selectedMissionId}/members`
+    )
+
+    if (!sessionsResponse.ok) {
+      throw new Error("Failed to load mission sessions")
+    }
+
+    const sessionsData = await sessionsResponse.json()
+    setMissionMembers(sessionsData.members)
+
+    // Reload mission hours
+    const hoursResponse = await fetch(
+      `http://127.0.0.1:8000/missions/${selectedMissionId}/hours`
+    )
+
+    if (!hoursResponse.ok) {
+      throw new Error("Failed to load mission hours")
+    }
+
+    const hoursData = await hoursResponse.json()
+    setMissionHours(hoursData.hours)
+    setTeamMembers(teamData.members)
+
+  } catch (error) {
+    console.error("Mission update failed:", error)
+    alert(error.message)
+  }
 }
 
 function calculateHours(member) {
@@ -113,9 +204,43 @@ function calculateHours(member) {
     {user.name} — {user.email}
   </div>
 ))}
+      <h2>Create Mission</h2>
 
+<form onSubmit={createMission}>
+  <input
+    type="text"
+    placeholder="Mission name"
+    value={newMissionName}
+    onChange={(event) => setNewMissionName(event.target.value)}
+    required
+  />
+
+  <input
+    type="text"
+    placeholder="Location"
+    value={newMissionLocation}
+    onChange={(event) => setNewMissionLocation(event.target.value)}
+    required
+  />
+
+  <button type="submit" disabled={creatingMission}>
+    {creatingMission ? "Creating..." : "Create Mission"}
+  </button>
+</form>
       <h2>Active Mission</h2>
-      <h3>Search & Rescue — Mt. Shasta</h3>
+
+<select
+  value={selectedMissionId ?? ""}
+  onChange={(event) =>
+    setSelectedMissionId(Number(event.target.value))
+  }
+>
+  {missions.map((mission) => (
+    <option key={mission.id} value={mission.id}>
+      {mission.name} — {mission.location}
+    </option>
+  ))}
+</select>
       <h2>Mission Hours</h2>
 
 {missionHours.map((member) => (
@@ -125,7 +250,7 @@ function calculateHours(member) {
     <span> — Total Hours: {Number(member.total_hours).toFixed(2)}</span>
   </div>
 ))}
-      <h2>Mission 1 Database Sessions</h2>
+      <h2>Mission {selectedMissionId} Database Sessions</h2>
 
 {missionMembers.map((member, index) => (
   <div key={index}>
@@ -146,31 +271,38 @@ function calculateHours(member) {
 ))}
       <h2>Team Members</h2>
 
-      {members.map((member) => (
-  <div key={member.id}>
-    <strong>{member.name}</strong>
-    <span> — {member.status}</span>
-    {member.checkedInAt && (
-      <span>
-        {" "}Check in: {member.checkedInAt.toLocaleTimeString()}
-      </span>
-    )}
+      {teamMembers.map((user) => {
+  const activeSession = missionMembers.find(
+    (session) =>
+      session.id === user.id &&
+      session.checked_out_at === null
+  )
 
-    {member.checkedOutAt && (
+  const isCheckedIn = Boolean(activeSession)
+
+  return (
+    <div key={user.id}>
+      <strong>{user.name}</strong>
+
       <span>
-        {" "}Check out: {member.checkedOutAt.toLocaleTimeString()}
+        {" "}— {isCheckedIn ? "Checked In" : "Checked Out"}
       </span>
-    )}
-    {calculateHours(member) && (
-  <span>
-    {" "}Hours: {calculateHours(member)}
-  </span>
-)}
-    <button onClick={() => toggleStatus(member.id)}>
-      {member.status === "Checked In" ? "Check Out" : "Check In"}
-    </button>
-  </div>
-))}
+
+      {activeSession && (
+        <span>
+          {" "}— Check in:{" "}
+          {new Date(activeSession.checked_in_at).toLocaleTimeString()}
+        </span>
+      )}
+
+      <button
+        onClick={() => toggleStatus(user.id, isCheckedIn)}
+      >
+        {isCheckedIn ? "Check Out" : "Check In"}
+      </button>
+    </div>
+  )
+})}
     </div>
   )
 }
