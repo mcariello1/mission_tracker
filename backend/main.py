@@ -308,3 +308,150 @@ def get_mission_team(mission_id: int):
 
     finally:
         conn.close()
+
+@app.get("/teams")
+def get_teams():
+    conn = get_connection()
+
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                SELECT id, name, created_at
+                FROM teams
+                ORDER BY name;
+                """
+            )
+
+            teams = cursor.fetchall()
+
+        return {"teams": teams}
+
+    finally:
+        conn.close()
+
+class CreateTeamRequest(BaseModel):
+    name: str
+
+
+@app.post("/teams", status_code=201)
+def create_team(request: CreateTeamRequest):
+    conn = get_connection()
+
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO teams (name)
+                    VALUES (%s)
+                    RETURNING id, name, created_at;
+                    """,
+                    (request.name,)
+                )
+
+                team = dict(cursor.fetchone())
+
+        return {
+            "message": "Team created successfully",
+            "team": team
+        }
+
+    finally:
+        conn.close()
+
+class AddTeamMemberRequest(BaseModel):
+    user_id: int
+
+
+@app.post("/teams/{team_id}/members", status_code=201)
+def add_team_member(team_id: int, request: AddTeamMemberRequest):
+    conn = get_connection()
+
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+
+                # Confirm team exists
+                cursor.execute(
+                    "SELECT id FROM teams WHERE id = %s",
+                    (team_id,)
+                )
+
+                if cursor.fetchone() is None:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Team not found"
+                    )
+
+                # Confirm user exists
+                cursor.execute(
+                    "SELECT id FROM users WHERE id = %s",
+                    (request.user_id,)
+                )
+
+                if cursor.fetchone() is None:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="User not found"
+                    )
+
+                # Add user to team without duplicating membership
+                cursor.execute(
+                    """
+                    INSERT INTO team_members (team_id, user_id)
+                    VALUES (%s, %s)
+                    ON CONFLICT (team_id, user_id) DO NOTHING
+                    RETURNING team_id, user_id;
+                    """,
+                    (team_id, request.user_id)
+                )
+
+                membership = cursor.fetchone()
+
+                if membership is None:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="User already belongs to this team"
+                    )
+
+        return {
+            "message": "Team member added successfully",
+            "membership": dict(membership)
+        }
+
+    finally:
+        conn.close()
+
+@app.delete("/teams/{team_id}/members/{user_id}")
+def remove_team_member(team_id: int, user_id: int):
+    conn = get_connection()
+
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute(
+                    """
+                    DELETE FROM team_members
+                    WHERE team_id = %s
+                      AND user_id = %s
+                    RETURNING team_id, user_id;
+                    """,
+                    (team_id, user_id)
+                )
+
+                removed = cursor.fetchone()
+
+                if removed is None:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Team membership not found"
+                    )
+
+        return {
+            "message": "Team member removed successfully",
+            "membership": dict(removed)
+        }
+
+    finally:
+        conn.close()
