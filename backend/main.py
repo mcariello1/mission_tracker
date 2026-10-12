@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.database import get_connection
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from psycopg2.errors import UniqueViolation
 
 app = FastAPI()
 app.add_middleware(
@@ -162,6 +163,15 @@ def check_in(mission_id: int, request: CheckInRequest):
                 session = dict(cursor.fetchone())
 
         return {"message": "Check-in successful", "session": session}
+
+    except UniqueViolation as error:
+        if error.diag.constraint_name != "unique_active_mission_checkin":
+            raise
+
+        raise HTTPException(
+            status_code=409,
+            detail="User is already checked in"
+        ) from error
 
     finally:
         conn.close()

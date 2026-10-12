@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
 from backend.main import app
+import pytest
+from psycopg2.errors import UniqueViolation
 
 client = TestClient(app)
 
@@ -225,6 +227,34 @@ def test_duplicate_mission_check_in(test_mission, test_team, test_user):
             active_sessions = cursor.fetchone()[0]
 
             assert active_sessions == 1
+
+    finally:
+        conn.close()
+
+def test_database_prevents_duplicate_active_checkins(test_mission, test_user):
+    conn = get_connection()
+
+    try:
+        with pytest.raises(UniqueViolation):
+            with conn:
+                with conn.cursor() as cursor:
+                    # First active check-in succeeds
+                    cursor.execute(
+                        """
+                        INSERT INTO mission_participation (mission_id, user_id)
+                        VALUES (%s, %s);
+                        """,
+                        (test_mission, test_user)
+                    )
+
+                    # Second active check-in must fail
+                    cursor.execute(
+                        """
+                        INSERT INTO mission_participation (mission_id, user_id)
+                        VALUES (%s, %s);
+                        """,
+                        (test_mission, test_user)
+                    )
 
     finally:
         conn.close()
