@@ -1,9 +1,17 @@
+import { useState } from "react"
 
 export default function MissionHistory({
   missions,
   selectedMissionId,
   onSelectMission
 }) {
+
+
+const [searchTerm, setSearchTerm] = useState("")
+
+const [statusFilter, setStatusFilter] = useState("All")
+
+
 
   function getMissionStatus(mission) {
   if (mission.ended_at !== null) {
@@ -16,15 +24,32 @@ export default function MissionHistory({
 
   return "Not Started"
 }
-  const notStartedMissions = missions.filter(
+  
+
+const filteredMissions = missions.filter((mission) => {
+  const search = searchTerm.toLowerCase().trim()
+
+  const matchesSearch =
+    mission.name.toLowerCase().includes(search) ||
+    mission.location.toLowerCase().includes(search)
+
+  const matchesStatus =
+    statusFilter === "All" ||
+    getMissionStatus(mission) === statusFilter
+
+  return matchesSearch && matchesStatus
+})
+
+
+  const notStartedMissions = filteredMissions.filter(
   (mission) => getMissionStatus(mission) === "Not Started"
 )
 
-const activeMissions = missions.filter(
+const activeMissions = filteredMissions.filter(
   (mission) => getMissionStatus(mission) === "Active"
 )
 
-const completedMissions = missions.filter(
+const completedMissions = filteredMissions.filter(
   (mission) => getMissionStatus(mission) === "Completed"
 )
 
@@ -66,22 +91,90 @@ function renderMission(mission) {
     )
   }
 
-  return (
-    <section className="mission-history">
-      <h2>Mission History</h2>
-      <h3>Not Started ({notStartedMissions.length})</h3>
-{notStartedMissions.length === 0
-  ? <p>No pending missions.</p>
-  : notStartedMissions.map(renderMission)}
-      <h3>Active Missions ({activeMissions.length})</h3>
-      {activeMissions.length === 0
-        ? <p>No active missions.</p>
-        : activeMissions.map(renderMission)}
+  
+return (
+  <section className="mission-history">
+    <h2>Mission History</h2>
 
-      <h3>Completed Missions ({completedMissions.length})</h3>
-      {completedMissions.length === 0
-        ? <p>No completed missions yet.</p>
-        : completedMissions.map(renderMission)}
+    <input
+      type="text"
+      placeholder="Search missions by name or location..."
+      value={searchTerm}
+      onChange={(event) => setSearchTerm(event.target.value)}
+      aria-label="Search missions"
+    />
+
+<select
+  value={statusFilter}
+  onChange={(event) => setStatusFilter(event.target.value)}
+  aria-label="Filter missions by status"
+>
+  <option value="All">All Missions</option>
+  <option value="Not Started">Not Started</option>
+  <option value="Active">Active</option>
+  <option value="Completed">Completed</option>
+</select>
+
+
+{searchTerm !== "" && (
+  <button
+    type="button"
+    onClick={() => setSearchTerm("")}
+  >
+    Clear Search
+  </button>
+  
+)}
+
+
+{searchTerm.trim() !== "" && (
+  <p>
+    Showing {filteredMissions.length} of {missions.length} missions
+  </p>
+)}
+
+
+
+{filteredMissions.length === 0 && searchTerm.trim() !== "" && (
+  <p>No missions found matching "{searchTerm}".</p>
+)}
+
+
+    
+{(statusFilter === "All" || statusFilter === "Not Started") && (
+  <>
+    <h3>Not Started ({notStartedMissions.length})</h3>
+    {notStartedMissions.length === 0
+      ? <p>No pending missions.</p>
+      : notStartedMissions.map(renderMission)}
+  </>
+)}
+
+      
+{(statusFilter === "All" || statusFilter === "Active") && (
+  <>
+    <h3 id="active-missions">
+      Active Missions ({activeMissions.length})
+    </h3>
+    {activeMissions.length === 0
+      ? <p>No active missions.</p>
+      : activeMissions.map(renderMission)}
+  </>
+)}
+
+
+      
+{(statusFilter === "All" || statusFilter === "Completed") && (
+  <>
+    <h3 id="completed-missions">
+      Completed Missions ({completedMissions.length})
+    </h3>
+    {completedMissions.length === 0
+      ? <p>No completed missions yet.</p>
+      : completedMissions.map(renderMission)}
+  </>
+)}
+
     </section>
   )
 }

@@ -1,7 +1,4 @@
 import { useState, useEffect } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
 import './App.css'
 import MissionHistory from './components/MissionHistory'
 
@@ -23,6 +20,10 @@ function App() {
   const [newMissionLocation, setNewMissionLocation] = useState("")
   const [newMissionTeamId, setNewMissionTeamId] = useState("")
   const [creatingMission, setCreatingMission] = useState(false)
+  const [notification, setNotification] = useState(null)
+
+  const [updatingResponder, setUpdatingResponder] = useState(null)
+
 
 
   useEffect(() => {
@@ -44,9 +45,17 @@ function App() {
     .then((data) => {
       setMissions(data.missions)
 
-      if (data.missions.length > 0) {
-        setSelectedMissionId(data.missions[0].id)
-      }
+      
+if (data.missions.length > 0) {
+  const activeMission = data.missions.find(
+    (mission) => mission.started_at && !mission.ended_at
+  )
+
+  setSelectedMissionId(
+    activeMission ? activeMission.id : data.missions[0].id
+  )
+}
+
     })
     .catch((error) => {
       console.error("Error fetching missions:", error)
@@ -133,10 +142,22 @@ useEffect(() => {
     const teamData = await teamResponse.json()
     setTeamMembers(teamData.members)
 
-  } catch (error) {
-    console.error("Failed to remove member:", error)
-    alert(error.message)
-  }
+setNotification({
+  type: "success",
+  message: "Team member removed successfully."
+})
+
+
+  
+} catch (error) {
+  console.error("Failed to remove member:", error)
+
+  setNotification({
+    type: "error",
+    message: error.message
+  })
+}
+
 }
 
   async function assignTeamMember(event) {
@@ -166,7 +187,12 @@ useEffect(() => {
       throw new Error(data.detail || "Failed to assign team member")
     }
 
-    alert("Team member assigned successfully!")
+    
+setNotification({
+  type: "success",
+  message: "Team member assigned successfully."
+})
+ 
 
     setAssignmentUserId("")
     setAssignmentTeamId("")
@@ -189,12 +215,18 @@ useEffect(() => {
       setTeamMembers(teamData.members)
     }
 
-  } catch (error) {
-    console.error("Team assignment failed:", error)
-    alert(error.message)
-  } finally {
-    setAssigningMember(false)
-  }
+  
+} catch (error) {
+  console.error("Team assignment failed:", error)
+
+  setNotification({
+    type: "error",
+    message: error.message
+  })
+} finally {
+  setAssigningMember(false)
+}
+
 }
 
   async function createTeam(event) {
@@ -230,12 +262,25 @@ useEffect(() => {
     ])
 
     setNewTeamName("")
-  } catch (error) {
-    console.error("Error creating team:", error)
-    alert(error.message)
-  } finally {
-    setCreatingTeam(false)
-  }
+
+
+setNotification({
+  type: "success",
+  message: "Team created successfully."
+})
+
+  
+} catch (error) {
+  console.error("Error creating team:", error)
+
+  setNotification({
+    type: "error",
+    message: error.message
+  })
+} finally {
+  setCreatingTeam(false)
+}
+
 }
 
   async function createMission(event) {
@@ -286,15 +331,30 @@ useEffect(() => {
     setNewMissionLocation("")
     setNewMissionTeamId("")
 
+setNotification({
+  type: "success",
+  message: "Mission created successfully."
+})
+
+
   } catch (error) {
-    console.error("Error creating mission:", error)
-    alert(error.message)
-  } finally {
-    setCreatingMission(false)
-  }
+  console.error("Error creating mission:", error)
+
+  setNotification({
+    type: "error",
+    message: error.message
+  })
+} finally {
+  setCreatingMission(false)
+}
 }
   
 async function startMission(missionId) {
+  const confirmed = window.confirm(
+  "Are you sure you want to start this mission?"
+)
+
+if (!confirmed) return
   try {
     const response = await fetch(
       `http://127.0.0.1:8000/missions/${missionId}/start`,
@@ -315,14 +375,30 @@ async function startMission(missionId) {
       )
     )
 
-  } catch (error) {
-    console.error("Failed to start mission:", error)
-    alert(error.message)
-  }
+    setNotification({
+  type: "success",
+  message: "Mission started successfully."
+})
+
+  
+} catch (error) {
+  console.error("Failed to start mission:", error)
+
+  setNotification({
+    type: "error",
+    message: error.message
+  })
+}
+
 }
 
  
 async function completeMission(missionId) {
+  const confirmed = window.confirm(
+  "Are you sure you want to complete this mission?"
+)
+
+if (!confirmed) return
   try {
     const response = await fetch(
       `http://127.0.0.1:8000/missions/${missionId}/complete`,
@@ -343,15 +419,38 @@ async function completeMission(missionId) {
       )
     )
 
+setNotification({
+  type: "success",
+  message: "Mission completed successfully."
+})
+
+
   } catch (error) {
-    console.error("Failed to complete mission:", error)
-    alert(error.message)
-  }
+  console.error("Failed to complete mission:", error)
+
+  setNotification({
+    type: "error",
+    message: error.message
+  })
+}
 }
 
 
   async function toggleStatus(id, isCheckedIn) {
   const action = isCheckedIn ? "check-out" : "check-in"
+  if (isCheckedIn) {
+  const confirmed = window.confirm(
+    "Are you sure you want to check out this responder?"
+  )
+
+  if (!confirmed) return
+}
+
+
+if (updatingResponder !== null) return
+
+setUpdatingResponder(id)
+
 
   try {
     const response = await fetch(
@@ -383,6 +482,7 @@ async function completeMission(missionId) {
     const sessionsData = await sessionsResponse.json()
     setMissionMembers(sessionsData.members)
 
+
     // Reload mission hours
     const hoursResponse = await fetch(
       `http://127.0.0.1:8000/missions/${selectedMissionId}/hours`
@@ -395,10 +495,26 @@ async function completeMission(missionId) {
     const hoursData = await hoursResponse.json()
     setMissionHours(hoursData.hours)
 
-  } catch (error) {
-    console.error("Mission update failed:", error)
-    alert(error.message)
-  }
+    setNotification({
+  type: "success",
+  message: isCheckedIn
+    ? "Responder checked out successfully."
+    : "Responder checked in successfully."
+})
+
+  
+} catch (error) {
+  console.error("Mission update failed:", error)
+
+  setNotification({
+    type: "error",
+    message: error.message
+  })
+}
+finally {
+  setUpdatingResponder(null)
+}
+
 }
 
 function calculateHours(member) {
@@ -412,16 +528,129 @@ function calculateHours(member) {
     return hours.toFixed(2)
   }
 
-  return (
-  <div>
-    <h1>Mission Tracker</h1>
-    <p>Mission management dashboard</p>
+const activeMissionCount = missions.filter(
+  (mission) => mission.started_at && !mission.ended_at
+).length
 
+const completedMissionCount = missions.filter(
+  (mission) => mission.ended_at !== null
+).length
+
+
+const totalMissionCount = missions.length
+
+
+const deployedResponderCount = missionMembers.filter(
+  (member) => member.checked_out_at === null
+).length
+
+
+
+
+  return (
+  <div className="app-container">
+    <header className="dashboard-header">
+      <div>
+        <h1>Mission Tracker</h1>
+        <p>Mission management dashboard</p>
+      </div>
+    <section className="dashboard-stats">
+  
+<div
+  className="stat-card stat-card-clickable"
+  role="button"
+  tabIndex={0}
+  onClick={() => {
+    document.getElementById("active-missions")?.scrollIntoView({
+      behavior: "smooth"
+    })
+  }}
+  onKeyDown={(event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault()
+      event.currentTarget.click()
+    }
+  }}
+>
+  <h3>Active Missions</h3>
+  <p>{activeMissionCount}</p>
+</div>
+
+  
+<button
+  type="button"
+  className="stat-card stat-card-clickable"
+  onClick={() => {
+    document.getElementById("completed-missions")?.scrollIntoView({
+      behavior: "smooth"
+    })
+  }}
+>
+  <h3>Completed Missions</h3>
+  <p>{completedMissionCount}</p>
+</button>
+
+
+<button
+  type="button"
+  className="stat-card stat-card-clickable"
+  onClick={() => {
+    document.getElementById("mission-history")?.scrollIntoView({
+      behavior: "smooth"
+    })
+  }}
+>
+  <h3>Total Missions</h3>
+  <p>{totalMissionCount}</p>
+</button>
+
+
+<button
+  type="button"
+  className="stat-card stat-card-clickable"
+  onClick={() => {
+    document.getElementById("currently-checked-in")?.scrollIntoView({
+      behavior: "smooth"
+    })
+  }}
+>
+  <h3>Responders Deployed</h3>
+  <p>{deployedResponderCount}</p>
+  <span className="stat-description">
+    Selected mission only
+  </span>
+</button>
+
+</section>
+    </header>
+    
+{notification && (
+  <div
+    className={`app-notification app-notification-${notification.type}`}
+    role="alert"
+  >
+    <span>{notification.message}</span>
+
+    <button
+      type="button"
+      onClick={() => setNotification(null)}
+      aria-label="Dismiss notification"
+    >
+      ×
+    </button>
+  </div>
+)}
+  
+    
+<section className="dashboard-panel">
+  <div id="mission-history">
     <MissionHistory
-  missions={missions}
-  selectedMissionId={selectedMissionId}
-  onSelectMission={setSelectedMissionId}
-/>
+      missions={missions}
+      selectedMissionId={selectedMissionId}
+      onSelectMission={setSelectedMissionId}
+    />
+  </div>
+
    {missions
   .filter((mission) => mission.id === selectedMissionId)
   .map((mission) => (
@@ -485,7 +714,7 @@ function calculateHours(member) {
     ))}
   </div>
 )}
-   <h3>Currently Checked In</h3>
+   <h3 id="currently-checked-in">Currently Checked In</h3>
 
 {missionMembers.filter(
   (member) => member.checked_out_at === null
@@ -508,7 +737,7 @@ function calculateHours(member) {
 )}
     </section>
   ))}
-
+    </section>
     <h2>Database Users</h2>
 
 {users.map((user) => (
@@ -626,34 +855,8 @@ function calculateHours(member) {
     </option>
   ))}
 </select>
-      <h2>Mission Hours</h2>
-
-{missionHours.map((member) => (
-  <div key={member.id}>
-    <strong>{member.name}</strong>
-    <span> — Sessions: {member.session_count}</span>
-    <span> — Total Hours: {Number(member.total_hours).toFixed(2)}</span>
-  </div>
-))}
-      <h2>Mission {selectedMissionId} Database Sessions</h2>
-
-{missionMembers.map((member, index) => (
-  <div key={index}>
-    <strong>{member.name}</strong>
-
-    <span>
-      {" "}— Check in:{" "}
-      {new Date(member.checked_in_at).toLocaleTimeString()}
-    </span>
-
-    {member.checked_out_at && (
-      <span>
-        {" "}Check out:{" "}
-        {new Date(member.checked_out_at).toLocaleTimeString()}
-      </span>
-    )}
-  </div>
-))}
+      
+      
       <h2>Team Members</h2>
 
       {teamMembers.map((user) => {
@@ -680,11 +883,36 @@ function calculateHours(member) {
         </span>
       )}
 
-      <button
-        onClick={() => toggleStatus(user.id, isCheckedIn)}
-      >
-        {isCheckedIn ? "Check Out" : "Check In"}
-      </button>
+      
+<button
+  type="button"
+  disabled={
+  updatingResponder !== null ||
+  (!isCheckedIn &&
+    !missions.some(
+      (mission) =>
+        mission.id === selectedMissionId &&
+        mission.started_at &&
+        !mission.ended_at
+    ))
+}
+  onClick={() => toggleStatus(user.id, isCheckedIn)}
+>
+  
+
+
+{updatingResponder === user.id
+  ? isCheckedIn
+    ? "Checking Out..."
+    : "Checking In..."
+  : isCheckedIn
+    ? "Check Out"
+    : "Check In"}
+
+
+
+</button>
+
 
       <button
         type="button"
