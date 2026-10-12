@@ -519,3 +519,126 @@ def test_concurrent_mission_checkins(test_mission, test_team, test_user):
 
     finally:
         conn.close()
+
+
+def test_cannot_check_in_before_mission_starts(test_mission, test_user):
+    # Put the test mission back into Not Started status
+    conn = get_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE missions
+                    SET started_at = NULL
+                    WHERE id = %s;
+                    """,
+                    (test_mission,)
+                )
+    finally:
+        conn.close()
+
+    # Attempt to check in before the mission starts
+    response = client.post(
+        f"/missions/{test_mission}/check-in",
+        json={"user_id": test_user}
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "Cannot check in unless mission is active"
+    )
+
+
+def test_cannot_complete_mission_with_active_responders(
+    test_mission, test_team, test_user
+):
+    # Add the responder to the mission's team
+    assignment = client.post(
+        f"/teams/{test_team}/members",
+        json={"user_id": test_user}
+    )
+    assert assignment.status_code == 201
+
+    # Check the responder into the active mission
+    check_in = client.post(
+        f"/missions/{test_mission}/check-in",
+        json={"user_id": test_user}
+    )
+    assert check_in.status_code == 201
+
+    # Attempt to complete the mission
+    response = client.post(
+        f"/missions/{test_mission}/complete"
+    )
+
+    # Completion must be rejected
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "Cannot complete mission while responders are checked in"
+    )
+
+
+def test_complete_mission_after_responder_checks_out(
+    test_mission, test_team, test_user
+):
+    # Assign responder to the mission's team
+    assignment = client.post(
+        f"/teams/{test_team}/members",
+        json={"user_id": test_user}
+    )
+    assert assignment.status_code == 201
+
+    # Check in
+    check_in = client.post(
+        f"/missions/{test_mission}/check-in",
+        json={"user_id": test_user}
+    )
+    assert check_in.status_code == 201
+
+    # Check out
+    check_out = client.post(
+        f"/missions/{test_mission}/check-out",
+        json={"user_id": test_user}
+    )
+    assert check_out.status_code == 200
+
+    # Complete the mission
+    completion = client.post(
+        f"/missions/{test_mission}/complete"
+    )
+    assert completion.status_code == 200
+
+    # Verify the mission is completed
+    mission = completion.json()["mission"]
+    assert mission["ended_at"] is not None
+
+
+def test_cannot_check_in_after_mission_completed(
+    test_mission, test_team, test_user
+):
+    # Assign responder to the mission's team
+    assignment = client.post(
+        f"/teams/{test_team}/members",
+        json={"user_id": test_user}
+    )
+    assert assignment.status_code == 201
+
+    # Complete the active mission
+    completion = client.post(
+        f"/missions/{test_mission}/complete"
+    )
+    assert completion.status_code == 200
+
+    # Attempt to check in after completion
+    response = client.post(
+        f"/missions/{test_mission}/check-in",
+        json={"user_id": test_user}
+    )
+
+    # Completed missions must reject check-ins
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "Cannot check in unless mission is active"
+    )
