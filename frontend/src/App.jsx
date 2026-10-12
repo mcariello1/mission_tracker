@@ -3,6 +3,7 @@ import heroImg from './assets/hero.png'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import './App.css'
+import MissionHistory from './components/MissionHistory'
 
 
 function App() {
@@ -292,6 +293,63 @@ useEffect(() => {
     setCreatingMission(false)
   }
 }
+  
+async function startMission(missionId) {
+  try {
+    const response = await fetch(
+      `http://127.0.0.1:8000/missions/${missionId}/start`,
+      { method: "POST" }
+    )
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.detail || "Failed to start mission")
+    }
+
+    setMissions((previousMissions) =>
+      previousMissions.map((mission) =>
+        mission.id === missionId
+          ? { ...mission, ...data.mission }
+          : mission
+      )
+    )
+
+  } catch (error) {
+    console.error("Failed to start mission:", error)
+    alert(error.message)
+  }
+}
+
+ 
+async function completeMission(missionId) {
+  try {
+    const response = await fetch(
+      `http://127.0.0.1:8000/missions/${missionId}/complete`,
+      { method: "POST" }
+    )
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.detail || "Failed to complete mission")
+    }
+
+    setMissions((previousMissions) =>
+      previousMissions.map((mission) =>
+        mission.id === missionId
+          ? { ...mission, ...data.mission }
+          : mission
+      )
+    )
+
+  } catch (error) {
+    console.error("Failed to complete mission:", error)
+    alert(error.message)
+  }
+}
+
+
   async function toggleStatus(id, isCheckedIn) {
   const action = isCheckedIn ? "check-out" : "check-in"
 
@@ -355,10 +413,103 @@ function calculateHours(member) {
   }
 
   return (
-    <div>
-      <h1>Mission Tracker</h1>
-      <p>Mission management dashboard</p>
-      <h2>Database Users</h2>
+  <div>
+    <h1>Mission Tracker</h1>
+    <p>Mission management dashboard</p>
+
+    <MissionHistory
+  missions={missions}
+  selectedMissionId={selectedMissionId}
+  onSelectMission={setSelectedMissionId}
+/>
+   {missions
+  .filter((mission) => mission.id === selectedMissionId)
+  .map((mission) => (
+    <section key={mission.id} className="selected-mission-details">
+      <h2>Selected Mission</h2>
+      <h3>{mission.name}</h3>
+      <p>Location: {mission.location}</p>
+      <p>Team: {mission.team_name}</p>
+      <p>
+        Status:{" "}
+        {mission.ended_at
+          ? "Completed"
+          : mission.started_at
+            ? "Active"
+            : "Not Started"}
+      </p>
+      <p>Mission ID: {mission.id}</p>
+      {!mission.started_at && !mission.ended_at && (
+  <button
+    type="button"
+    onClick={() => startMission(mission.id)}
+  >
+    Start Mission
+  </button>
+)}
+    
+{mission.started_at && !mission.ended_at && (
+  <button
+    type="button"
+    onClick={() => completeMission(mission.id)}
+  >
+    Complete Mission
+  </button>
+)}
+
+      <h3>Responder Hours</h3>
+      <p>
+  <strong>Total Mission Hours: </strong>
+  {missionHours
+    .reduce(
+      (total, member) => total + Number(member.total_hours || 0),
+      0
+    )
+    .toFixed(2)}
+</p>
+
+{missionHours.length === 0 ? (
+  <p>No responder hours recorded yet.</p>
+) : (
+  <div>
+    {missionHours.map((member) => (
+      <div key={member.id}>
+        <strong>{member.name}</strong>
+        <span>
+          {" "}— {Number(member.total_hours).toFixed(2)} hours
+        </span>
+        <span>
+          {" "}({member.session_count} sessions)
+        </span>
+      </div>
+    ))}
+  </div>
+)}
+   <h3>Currently Checked In</h3>
+
+{missionMembers.filter(
+  (member) => member.checked_out_at === null
+).length === 0 ? (
+  <p>No responders currently checked in.</p>
+) : (
+  <div>
+    {missionMembers
+      .filter((member) => member.checked_out_at === null)
+      .map((member, index) => (
+        <div key={index}>
+          <strong>{member.name}</strong>
+          <span>
+            {" "}— Checked in at{" "}
+            {new Date(member.checked_in_at).toLocaleString()}
+          </span>
+        </div>
+      ))}
+  </div>
+)}
+    </section>
+  ))}
+
+    <h2>Database Users</h2>
 
 {users.map((user) => (
   <div key={user.id}>

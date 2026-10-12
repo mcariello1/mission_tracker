@@ -123,10 +123,16 @@ def test_mission(test_team):
 
         with conn:
             with conn.cursor() as cursor:
+                
                 cursor.execute(
                     """
-                    INSERT INTO missions (name, location, team_id)
-                    VALUES (%s, %s, %s)
+                    INSERT INTO missions (
+                        name,
+                        location,
+                        team_id,
+                        started_at
+                    )
+                    VALUES (%s, %s, %s, NOW())
                     RETURNING id;
                     """,
                     (
@@ -135,6 +141,7 @@ def test_mission(test_team):
                         test_team
                     )
                 )
+
 
                 mission_id = cursor.fetchone()[0]
     finally:
