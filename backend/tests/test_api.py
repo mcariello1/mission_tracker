@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 from backend.main import app
 import pytest
 from psycopg2.errors import UniqueViolation
+from concurrent.futures import ThreadPoolExecutor
 
 client = TestClient(app)
 
@@ -469,3 +470,52 @@ def test_active_session_excluded_from_hours(test_mission, test_team, test_user):
     # Only the completed session should count
     assert user_hours["session_count"] == 1
     assert abs(float(user_hours["total_hours"]) - 2.0) < 0.001
+
+
+
+def test_concurrent_mission_checkins(test_mission, test_team, test_user):
+    # Assign the user to the mission's team
+    response = client.post(
+        f"/teams/{test_team}/members",
+        json={"user_id": test_user}
+    )
+
+    assert response.status_code == 201
+
+    # Each worker sends a check-in request
+    def check_in():
+        return client.post(
+            f"/missions/{test_mission}/check-in",
+            json={"user_id": test_user}
+        )
+
+    # Send two requests concurrently
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(check_in) for _ in range(2)]
+        responses = [future.result() for future in futures]
+
+    # One request should succeed, the other should conflict
+    status_codes = sorted(response.status_code for response in responses)
+
+    assert status_codes == [201, 409]
+
+    # Verify PostgreSQL contains exactly one active session
+    conn = get_connection()
+
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT COUNT(*)
+                FROM mission_participation
+                WHERE mission_id = %s
+                  AND user_id = %s
+                  AND checked_out_at IS NULL;
+                """,
+                (test_mission, test_user)
+            )
+
+            assert cursor.fetchone()[0] == 1
+
+    finally:
+        conn.close()
