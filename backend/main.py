@@ -187,6 +187,25 @@ def check_in(mission_id: int, request: CheckInRequest):
 
                 session = dict(cursor.fetchone())
 
+                cursor.execute(
+                    """
+                    INSERT INTO mission_activity_log (
+                        mission_id,
+                        user_id,
+                        event_type,
+                        description
+                    )
+                    VALUES (%s, %s, %s, %s);
+                    """,
+                    (
+                        mission_id,
+                        request.user_id,
+                        "responder_checked_in",
+                        f"Responder {request.user_id} checked into mission {mission_id}"
+                    )
+                )
+
+
         return {"message": "Check-in successful", "session": session}
 
     except UniqueViolation as error:
@@ -232,6 +251,25 @@ def check_out(mission_id: int, request: CheckInRequest):
                         status_code=404,
                         detail="No active check-in found"
                     )
+                
+                cursor.execute(
+                    """
+                    INSERT INTO mission_activity_log (
+                        mission_id,
+                        user_id,
+                        event_type,
+                        description
+                    )
+                    VALUES (%s, %s, %s, %s);
+                    """,
+                    (
+                        mission_id,
+                        request.user_id,
+                        "responder_checked_out",
+                        f"Responder {request.user_id} checked out of mission {mission_id}"
+                    )
+                )
+
 
         return {
             "message": "Check-out successful",
@@ -352,6 +390,23 @@ def start_mission(mission_id: int):
                         status_code=409,
                         detail="Mission has already been started or completed"
                     )
+                
+                cursor.execute(
+                    """
+                    INSERT INTO mission_activity_log (
+                        mission_id,
+                        event_type,
+                        description
+                    )
+                    VALUES (%s, %s, %s);
+                    """,
+                    (
+                        mission_id,
+                        "mission_started",
+                        f"Mission '{mission['name']}' was started"
+                    )
+                )
+
 
         return {
             "message": "Mission started successfully",
@@ -435,6 +490,23 @@ def complete_mission(mission_id: int):
                         status_code=409,
                         detail="Mission is not active"
                     )
+                
+                cursor.execute(
+                    """
+                    INSERT INTO mission_activity_log (
+                        mission_id,
+                        event_type,
+                        description
+                    )
+                    VALUES (%s, %s, %s);
+                    """,
+                    (
+                        mission_id,
+                        "mission_completed",
+                        f"Mission '{mission['name']}' was completed"
+                    )
+                )
+
 
         return {
             "message": "Mission completed successfully",
@@ -619,6 +691,55 @@ def remove_team_member(team_id: int, user_id: int):
             "message": "Team member removed successfully",
             "membership": dict(removed)
         }
+
+    finally:
+        conn.close()
+
+
+@app.get("/missions/{mission_id}/activity")
+def get_mission_activity(mission_id: int):
+    conn = get_connection()
+
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                SELECT id
+                FROM missions
+                WHERE id = %s;
+                """,
+                (mission_id,)
+            )
+
+            if cursor.fetchone() is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Mission not found"
+                )
+
+            cursor.execute(
+                """
+                
+SELECT
+    a.id,
+    a.mission_id,
+    a.user_id,
+    u.name AS responder_name,
+    a.event_type,
+    a.description,
+    a.created_at
+FROM mission_activity_log a
+LEFT JOIN users u ON a.user_id = u.id
+WHERE a.mission_id = %s
+ORDER BY a.created_at ASC, a.id ASC;
+
+                """,
+                (mission_id,)
+            )
+
+            events = [dict(row) for row in cursor.fetchall()]
+
+        return {"mission_id": mission_id, "events": events}
 
     finally:
         conn.close()

@@ -15,6 +15,7 @@ function App() {
   const [selectedMissionId, setSelectedMissionId] = useState(null)
   const [missionMembers, setMissionMembers] = useState([])
   const [missionHours, setMissionHours] = useState([])
+  const [missionActivity, setMissionActivity] = useState([])
   const [teamMembers, setTeamMembers] = useState([])
   const [newMissionName, setNewMissionName] = useState("")
   const [newMissionLocation, setNewMissionLocation] = useState("")
@@ -76,7 +77,13 @@ useEffect(() => {
 
   async function loadMissionData() {
     try {
-      const [membersResponse, hoursResponse, teamResponse] = await Promise.all([
+      
+const [
+  membersResponse,
+  hoursResponse,
+  teamResponse,
+  activityResponse
+] = await Promise.all([
   fetch(
     `http://127.0.0.1:8000/missions/${selectedMissionId}/members`
   ),
@@ -85,20 +92,31 @@ useEffect(() => {
   ),
   fetch(
     `http://127.0.0.1:8000/missions/${selectedMissionId}/team`
+  ),
+  fetch(
+    `http://127.0.0.1:8000/missions/${selectedMissionId}/activity`
   )
 ])
 
-      if (!membersResponse.ok || !hoursResponse.ok || !teamResponse.ok) {
+
+      if (
+  !membersResponse.ok ||
+  !hoursResponse.ok ||
+  !teamResponse.ok ||
+  !activityResponse.ok
+) {
         throw new Error("Failed to load mission data")
       }
 
       const membersData = await membersResponse.json()
       const hoursData = await hoursResponse.json()
       const teamData = await teamResponse.json()
+      const activityData = await activityResponse.json()
 
       setMissionMembers(membersData.members)
       setMissionHours(hoursData.hours)
       setTeamMembers(teamData.members)
+      setMissionActivity(activityData.events)
     } catch (error) {
       console.error("Error loading mission:", error)
     }
@@ -107,6 +125,7 @@ useEffect(() => {
   setMissionMembers([])
   setMissionHours([])
   setTeamMembers([])
+  setMissionActivity([])
   loadMissionData()
 }, [selectedMissionId])
 
@@ -375,6 +394,21 @@ if (!confirmed) return
       )
     )
 
+    // Refresh activity for the selected mission
+    if (selectedMissionId === missionId) {
+      const activityResponse = await fetch(
+        `http://127.0.0.1:8000/missions/${missionId}/activity`
+      )
+
+      if (!activityResponse.ok) {
+        throw new Error("Failed to refresh mission activity")
+      }
+
+      const activityData = await activityResponse.json()
+      setMissionActivity(activityData.events)
+    }
+
+
     setNotification({
   type: "success",
   message: "Mission started successfully."
@@ -418,6 +452,21 @@ if (!confirmed) return
           : mission
       )
     )
+
+    // Refresh activity for the selected mission
+    if (selectedMissionId === missionId) {
+      const activityResponse = await fetch(
+        `http://127.0.0.1:8000/missions/${missionId}/activity`
+      )
+
+      if (!activityResponse.ok) {
+        throw new Error("Failed to refresh mission activity")
+      }
+
+      const activityData = await activityResponse.json()
+      setMissionActivity(activityData.events)
+    }
+
 
 setNotification({
   type: "success",
@@ -494,6 +543,19 @@ setUpdatingResponder(id)
 
     const hoursData = await hoursResponse.json()
     setMissionHours(hoursData.hours)
+
+    // Reload mission activity
+    const activityResponse = await fetch(
+      `http://127.0.0.1:8000/missions/${selectedMissionId}/activity`
+    )
+
+    if (!activityResponse.ok) {
+      throw new Error("Failed to load mission activity")
+    }
+
+    const activityData = await activityResponse.json()
+    setMissionActivity(activityData.events)
+
 
     setNotification({
   type: "success",
@@ -735,6 +797,30 @@ const deployedResponderCount = missionMembers.filter(
       ))}
   </div>
 )}
+
+<h3>Mission Activity Log</h3>
+
+{missionActivity.length === 0 ? (
+  <p>No activity recorded for this mission yet.</p>
+) : (
+  <div className="mission-activity-log">
+    {missionActivity.map((event) => (
+      <div key={event.id} className="mission-activity-event">
+        <strong>
+  {event.event_type === "responder_checked_in"
+    ? `${event.responder_name || "Unknown responder"} checked into the mission`
+    : event.event_type === "responder_checked_out"
+      ? `${event.responder_name || "Unknown responder"} checked out of the mission`
+      : event.description}
+</strong>
+        <p>
+          {new Date(event.created_at).toLocaleString()}
+        </p>
+      </div>
+    ))}
+  </div>
+)}
+
     </section>
   ))}
     </section>
