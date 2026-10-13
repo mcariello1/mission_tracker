@@ -105,11 +105,22 @@ def test_user():
                         "DELETE FROM team_members WHERE user_id = %s",
                         (user_id,)
                     )
+                    cursor.execute(
+                            """
+                            UPDATE mission_activity_log
+                            SET user_id = NULL
+                            WHERE user_id = %s
+                            """,
+                            (user_id,)
+                        )
 
                     cursor.execute(
                         "DELETE FROM users WHERE id = %s",
                         (user_id,)
                     )
+
+
+
         finally:
             cleanup_conn.close()
 
@@ -159,15 +170,23 @@ def test_mission(test_team):
 
             with cleanup_conn:
                 with cleanup_conn.cursor() as cursor:
-                    # Remove participation records first
+                    
                     cursor.execute(
                         "DELETE FROM mission_participation WHERE mission_id = %s",
                         (mission_id,)
                     )
 
                     cursor.execute(
+                        "DELETE FROM mission_activity_log WHERE mission_id = %s",
+                        (mission_id,)
+                    )
+                    
+
+                    cursor.execute(
                         "DELETE FROM missions WHERE id = %s",
                         (mission_id,)
                     )
+
+
         finally:
             cleanup_conn.close()

@@ -642,3 +642,224 @@ def test_cannot_check_in_after_mission_completed(
     assert response.json()["detail"] == (
         "Cannot check in unless mission is active"
     )
+
+
+def test_start_mission_creates_activity_event(test_mission):
+    # Reset the mission to Not Started
+    conn = get_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE missions SET started_at = NULL WHERE id = %s",
+                    (test_mission,)
+                )
+    finally:
+        conn.close()
+
+    # Start the mission through the API
+    response = client.post(
+        f"/missions/{test_mission}/start"
+    )
+
+    assert response.status_code == 200
+
+    # Retrieve the mission activity
+    activity_response = client.get(
+        f"/missions/{test_mission}/activity"
+    )
+
+    assert activity_response.status_code == 200
+
+    events = activity_response.json()["events"]
+
+    # Starting the mission should create exactly one event
+    assert len(events) == 1
+    assert events[0]["event_type"] == "mission_started"
+    assert events[0]["mission_id"] == test_mission
+    assert events[0]["user_id"] is None
+
+
+def test_complete_mission_creates_activity_event(test_mission):
+    # Complete an active mission through the API
+    response = client.post(
+        f"/missions/{test_mission}/complete"
+    )
+
+    assert response.status_code == 200
+
+    # Retrieve the mission activity
+    activity_response = client.get(
+        f"/missions/{test_mission}/activity"
+    )
+
+    assert activity_response.status_code == 200
+
+    events = activity_response.json()["events"]
+
+    # Completing the mission should create exactly one event
+    assert len(events) == 1
+    assert events[0]["event_type"] == "mission_completed"
+    assert events[0]["mission_id"] == test_mission
+    assert events[0]["user_id"] is None
+
+
+
+def test_check_in_creates_activity_event(
+    test_mission, test_team, test_user
+):
+    # Assign responder to the mission's team
+    assignment = client.post(
+        f"/teams/{test_team}/members",
+        json={"user_id": test_user}
+    )
+
+    assert assignment.status_code == 201
+
+    # Check the responder into the mission
+    response = client.post(
+        f"/missions/{test_mission}/check-in",
+        json={"user_id": test_user}
+    )
+
+    assert response.status_code == 201
+
+    # Retrieve activity history
+    activity_response = client.get(
+        f"/missions/{test_mission}/activity"
+    )
+
+    assert activity_response.status_code == 200
+
+    events = activity_response.json()["events"]
+
+    assert len(events) == 1
+    assert events[0]["event_type"] == "responder_checked_in"
+    assert events[0]["mission_id"] == test_mission
+    assert events[0]["user_id"] == test_user
+    assert events[0]["responder_name"] == "Test Rescue User"
+
+
+
+def test_check_out_creates_activity_event(
+    test_mission, test_team, test_user
+):
+    # Assign responder to the mission's team
+    assignment = client.post(
+        f"/teams/{test_team}/members",
+        json={"user_id": test_user}
+    )
+    assert assignment.status_code == 201
+
+    # Check the responder in
+    check_in = client.post(
+        f"/missions/{test_mission}/check-in",
+        json={"user_id": test_user}
+    )
+    assert check_in.status_code == 201
+
+    # Check the responder out
+    check_out = client.post(
+        f"/missions/{test_mission}/check-out",
+        json={"user_id": test_user}
+    )
+    assert check_out.status_code == 200
+
+    # Retrieve the Activity Log
+    activity_response = client.get(
+        f"/missions/{test_mission}/activity"
+    )
+    assert activity_response.status_code == 200
+
+    events = activity_response.json()["events"]
+
+    # Verify both events exist in chronological order
+    assert len(events) == 2
+
+    assert events[0]["event_type"] == "responder_checked_in"
+    assert events[1]["event_type"] == "responder_checked_out"
+
+    assert events[1]["mission_id"] == test_mission
+    assert events[1]["user_id"] == test_user
+    assert events[1]["responder_name"] == "Test Rescue User"
+
+
+
+def test_duplicate_check_in_does_not_create_activity(
+    test_mission, test_team, test_user
+):
+    # Assign responder to the mission's team
+    assignment = client.post(
+        f"/teams/{test_team}/members",
+        json={"user_id": test_user}
+    )
+    assert assignment.status_code == 201
+
+    # First check-in should succeed
+    first_response = client.post(
+        f"/missions/{test_mission}/check-in",
+        json={"user_id": test_user}
+    )
+    assert first_response.status_code == 201
+
+    # Duplicate check-in should be rejected
+    duplicate_response = client.post(
+        f"/missions/{test_mission}/check-in",
+        json={"user_id": test_user}
+    )
+    assert duplicate_response.status_code == 409
+
+    # Verify only the successful check-in was logged
+    activity_response = client.get(
+        f"/missions/{test_mission}/activity"
+    )
+    assert activity_response.status_code == 200
+
+    events = activity_response.json()["events"]
+
+    assert len(events) == 1
+    assert events[0]["event_type"] == "responder_checked_in"
+    assert events[0]["user_id"] == test_user
+
+
+def test_failed_completion_does_not_create_activity(
+    test_mission, test_team, test_user
+):
+    # Assign responder to the mission's team
+    assignment = client.post(
+        f"/teams/{test_team}/members",
+        json={"user_id": test_user}
+    )
+    assert assignment.status_code == 201
+
+    # Check the responder in
+    check_in = client.post(
+        f"/missions/{test_mission}/check-in",
+        json={"user_id": test_user}
+    )
+    assert check_in.status_code == 201
+
+    # Attempt to complete the mission
+    completion = client.post(
+        f"/missions/{test_mission}/complete"
+    )
+    assert completion.status_code == 409
+
+    # Retrieve the Activity Log
+    activity_response = client.get(
+        f"/missions/{test_mission}/activity"
+    )
+    assert activity_response.status_code == 200
+
+    events = activity_response.json()["events"]
+
+    # Only the successful check-in should be recorded
+    assert len(events) == 1
+    assert events[0]["event_type"] == "responder_checked_in"
+
+    # No mission completion event should exist
+    assert not any(
+        event["event_type"] == "mission_completed"
+        for event in events
+    )
