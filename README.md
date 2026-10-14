@@ -45,4 +45,4 @@ My focus is not simply on generating working code, but on understanding the arch
 
 I use AI-assisted development tools as part of my workflow while taking responsibility for technical decisions, implementation, debugging, integration, and verification.
 
-**Project Status:** Active development — core mission management and ge
+**Project Status:** Active development — core mission management and geospatial functionality implemented; responder mapping and automated QA infrastructure in progress.
