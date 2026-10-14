@@ -863,3 +863,81 @@ def test_failed_completion_does_not_create_activity(
         event["event_type"] == "mission_completed"
         for event in events
     )
+
+
+def test_update_mission_location():
+    # Create a team
+    team_response = client.post(
+        "/teams",
+        json={"name": "Location Test Team"}
+    )
+    assert team_response.status_code == 201
+    team_id = team_response.json()["team"]["id"]
+
+    # Create a mission
+    mission_response = client.post(
+        "/missions",
+        json={
+            "name": "Map Location Test",
+            "location": "Truckee",
+            "team_id": team_id
+        }
+    )
+    assert mission_response.status_code == 201
+    mission_id = mission_response.json()["mission"]["id"]
+
+    # Save coordinates
+    response = client.patch(
+        f"/missions/{mission_id}/location",
+        json={
+            "latitude": 39.3279,
+            "longitude": -120.1833
+        }
+    )
+
+    assert response.status_code == 200
+
+    mission = response.json()["mission"]
+
+    assert mission["latitude"] == 39.3279
+    assert mission["longitude"] == -120.1833
+
+    # Confirm coordinates persist in the database
+    missions_response = client.get("/missions")
+    assert missions_response.status_code == 200
+
+    saved_mission = next(
+        m for m in missions_response.json()["missions"]
+        if m["id"] == mission_id
+    )
+
+    assert saved_mission["latitude"] == 39.3279
+    assert saved_mission["longitude"] == -120.1833
+
+
+def test_reject_invalid_mission_coordinates(test_mission):
+    mission_id = test_mission
+
+    response = client.patch(
+        f"/missions/{mission_id}/location",
+        json={
+            "latitude": 100,
+            "longitude": -120.1833
+        }
+    )
+
+    assert response.status_code == 422
+
+
+
+def test_update_nonexistent_mission_location():
+    response = client.patch(
+        "/missions/999999999/location",
+        json={
+            "latitude": 39.3279,
+            "longitude": -120.1833
+        }
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Mission not found"
