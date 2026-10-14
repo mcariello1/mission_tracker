@@ -1,62 +1,48 @@
-# Mission Tracker
+## 🚧 Development Status — Active Project
 
-## Development Progress
+**Mission Tracker is an actively developed full-stack application designed to coordinate search-and-rescue operations, manage responder participation, and visualize missions geographically.**
 
-**Current Phase:** Frontend Improvements & Testing
+This project began as an opportunity to demonstrate my approach to a real-world engineering problem: translating operational requirements into a functional application with a relational database, REST API, interactive frontend, and automated tests.
 
-**Estimated Completion:** 65%
+Rather than presenting a static coding exercise, I'm building and iterating on a system that demonstrates full-stack development, database design, debugging, testing, and technical decision-making.
 
-![Progress](https://geps.dev/progress/65)
+### Current Implementation
 
-### Completed
-- [x] FastAPI backend
-- [x] PostgreSQL relational database
-- [x] Mission creation and lifecycle management
-- [x] Team and responder management
-- [x] Responder check-in/check-out
-- [x] Mission history and responder hours
-- [x] React frontend core functionality
+- **Backend:** Python, FastAPI, PostgreSQL, RESTful APIs
+- **Frontend:** React, JavaScript, Vite, CSS
+- **Geospatial:** MapLibre GL JS with interactive topographic mapping
+- **Testing:** Pytest with a dedicated PostgreSQL test database
 
-### In Progress
-- [ ] Dashboard UI improvements
-- [ ] Error handling and user feedback
+### Implemented Features
 
-### Up Next
-- [ ] Automated backend API tests
-- [ ] Playwright end-to-end tests
-- [ ] GitHub Actions CI/CD
-- [ ] AI-assisted code review workflow
-- [ ] Architecture documentation
-- [ ] Production deployment
+- Mission creation, activation, completion, and history
+- Team management and responder assignments
+- Responder check-in/check-out with participation tracking
+- Automated calculation of responder mission hours
+- Mission activity logging
+- Interactive topographic map with persistent mission coordinates
+- Location selection, confirmation, and cancellation workflows
+- Backend integration tests covering mission operations and location validation
 
+### Current Development Focus
 
-A full-stack mission management application built with **React, FastAPI, and PostgreSQL**.
+- Manual responder positioning and GPS-ready location architecture
+- Responder location history and map visualization
+- Additional frontend functionality and responsive UI improvements
 
-Mission Tracker helps search-and-rescue teams manage missions, track personnel check-ins and check-outs, and calculate participation hours using persistent database records.
+### Planned Enhancements
 
-The project was inspired by a technical system-design exercise involving relational database modeling, user/team relationships, mission participation, and SQL aggregation.
+- Playwright end-to-end testing with automated screenshots and reports
+- GitHub Actions CI/CD integration
+- AI-assisted pull request reviews
+- Automated QA evidence and reporting
+- AI-generated mission summaries with evaluation tests
+- Deployment and production-readiness improvements
 
-## Tech Stack
+### Engineering Approach
 
-| Layer | Technology |
-|---|---|
-| Frontend | React, JavaScript, Vite |
-| Backend | Python, FastAPI |
-| Database | PostgreSQL |
-| Database Driver | psycopg2 |
-| API | REST, JSON |
-| Development | Git, GitHub, VS Code |
+My focus is not simply on generating working code, but on understanding the architecture, validating behavior, handling edge cases, and building maintainable systems.
 
-## Features
+I use AI-assisted development tools as part of my workflow while taking responsibility for technical decisions, implementation, debugging, integration, and verification.
 
-### Mission Management
-- Create new missions with names and locations.
-- Retrieve missions from PostgreSQL.
-- Select missions dynamically from the dashboard.
-- View mission-specific participation records and hours.
-
-### Personnel Tracking
-- Retrieve users and mission team members.
-- Check personnel into and out of missions.
-- Record timestamps for each participation session.
-- Prevent duplicate active check-ins through API validation
+**Project Status:** Active development — core mission management and ge
