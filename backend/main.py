@@ -291,6 +291,8 @@ def get_missions():
                     m.id,
                     m.name,
                     m.location,
+                    m.latitude,
+                    m.longitude,
                     m.team_id,
                     t.name AS team_name,
                     m.started_at,
@@ -308,6 +310,10 @@ def get_missions():
     finally:
         conn.close()
 
+
+class UpdateMissionLocationRequest(BaseModel):
+    latitude: float
+    longitude: float
 class CreateMissionRequest(BaseModel):
     name: str
     location: str
@@ -352,6 +358,60 @@ def create_mission(request: CreateMissionRequest):
     finally:
         conn.close()
 
+
+
+@app.patch("/missions/{mission_id}/location")
+def update_mission_location(
+    mission_id: int,
+    request: UpdateMissionLocationRequest
+):
+    if not -90 <= request.latitude <= 90:
+        raise HTTPException(
+            status_code=422,
+            detail="Latitude must be between -90 and 90"
+        )
+
+    if not -180 <= request.longitude <= 180:
+        raise HTTPException(
+            status_code=422,
+            detail="Longitude must be between -180 and 180"
+        )
+
+    conn = get_connection()
+
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute(
+                    """
+                    UPDATE missions
+                    SET latitude = %s,
+                        longitude = %s
+                    WHERE id = %s
+                    RETURNING id, name, location, latitude, longitude;
+                    """,
+                    (
+                        request.latitude,
+                        request.longitude,
+                        mission_id
+                    )
+                )
+
+                mission = cursor.fetchone()
+
+                if mission is None:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Mission not found"
+                    )
+
+        return {
+            "message": "Mission location updated successfully",
+            "mission": dict(mission)
+        }
+
+    finally:
+        conn.close()
 
 @app.post("/missions/{mission_id}/start")
 def start_mission(mission_id: int):
