@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 import MissionHistory from './components/MissionHistory'
+import MissionMap from './components/MissionMap'
 
 
 function App() {
@@ -610,8 +611,41 @@ const deployedResponderCount = missionMembers.filter(
 
 
   return (
-  <div className="app-container">
-    <header className="dashboard-header">
+  <div className="app-shell">
+    <aside className="app-sidebar">
+      <div className="sidebar-brand">
+        <span className="brand-symbol">▲</span>
+        <div>
+          <strong>MISSION TRACKER</strong>
+          <small>OPERATIONS CENTER</small>
+        </div>
+      </div>
+
+      <div className="sidebar-section-label">WORKSPACE</div>
+
+      <nav className="sidebar-navigation" aria-label="Main navigation">
+        <a href="#dashboard" className="sidebar-link sidebar-link-active">
+          ◈ Dashboard
+        </a>
+        <a href="#mission-history" className="sidebar-link">
+          ◉ Missions
+        </a>
+        <a href="#currently-checked-in" className="sidebar-link">
+          ◇ Responders
+        </a>
+        <a href="#mission-activity" className="sidebar-link">
+          ◷ Activity
+        </a>
+      </nav>
+
+      <div className="sidebar-footer">
+        <span className="sidebar-status-dot" />
+        System Online
+      </div>
+    </aside>
+
+    <main className="app-container" id="dashboard">
+      <header className="dashboard-header">
       <div>
         <h1>Mission Tracker</h1>
         <p>Mission management dashboard</p>
@@ -703,6 +737,19 @@ const deployedResponderCount = missionMembers.filter(
   </div>
 )}
   
+  <MissionMap
+  mission={missions.find((m) => m.id === selectedMissionId) ?? null}
+  onLocationSaved={(updatedMission) => {
+    setMissions((currentMissions) =>
+      currentMissions.map((mission) =>
+        mission.id === updatedMission.id
+          ? { ...mission, ...updatedMission }
+          : mission
+      )
+    )
+  }}
+  onNotify={setNotification}
+/>
     
 <section className="dashboard-panel">
   <div id="mission-history">
@@ -717,19 +764,49 @@ const deployedResponderCount = missionMembers.filter(
   .filter((mission) => mission.id === selectedMissionId)
   .map((mission) => (
     <section key={mission.id} className="selected-mission-details">
-      <h2>Selected Mission</h2>
-      <h3>{mission.name}</h3>
-      <p>Location: {mission.location}</p>
-      <p>Team: {mission.team_name}</p>
-      <p>
-        Status:{" "}
-        {mission.ended_at
-          ? "Completed"
-          : mission.started_at
-            ? "Active"
-            : "Not Started"}
-      </p>
-      <p>Mission ID: {mission.id}</p>
+      
+<div className="mission-detail-header">
+  <div>
+    <span className="panel-eyebrow">MISSION OVERVIEW</span>
+    <h2>Selected Mission</h2>
+  </div>
+
+  <span
+    className={`mission-status-badge ${
+      mission.ended_at
+        ? "status-completed"
+        : mission.started_at
+          ? "status-active"
+          : "status-pending"
+    }`}
+  >
+    {mission.ended_at
+      ? "Completed"
+      : mission.started_at
+        ? "Active"
+        : "Not Started"}
+  </span>
+</div>
+
+<h3 className="mission-detail-name">{mission.name}</h3>
+
+<div className="mission-info-grid">
+  <div className="mission-info-item">
+    <span>LOCATION</span>
+    <strong>{mission.location}</strong>
+  </div>
+
+  <div className="mission-info-item">
+    <span>ASSIGNED TEAM</span>
+    <strong>{mission.team_name}</strong>
+  </div>
+
+  <div className="mission-info-item">
+    <span>MISSION ID</span>
+    <strong>#{mission.id}</strong>
+  </div>
+</div>
+
       {!mission.started_at && !mission.ended_at && (
   <button
     type="button"
@@ -1018,7 +1095,8 @@ const deployedResponderCount = missionMembers.filter(
     </div>
   )
 })}
-    </div>
+       </main>
+  </div>
   )
 }
 
