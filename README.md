@@ -1,5 +1,5 @@
 ## 🚧 Development Status — Active Project
-
+[![Mission Tracker CI](https://github.com/mcariello1/mission_tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/mcariello1/mission_tracker/actions/workflows/ci.yml)
 **Mission Tracker is an actively developed full-stack application designed to coordinate search-and-rescue operations, manage responder participation, and visualize missions geographically.**
 
 This project began as an opportunity to demonstrate my approach to a real-world engineering problem: translating operational requirements into a functional application with a relational database, REST API, interactive frontend, and automated tests.
