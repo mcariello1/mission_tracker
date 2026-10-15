@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react"
 import * as maplibregl from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
+import { API_BASE_URL } from "../config"
 
 function MissionMap({ mission, onLocationSaved, onNotify }) {
   
@@ -12,6 +13,7 @@ function MissionMap({ mission, onLocationSaved, onNotify }) {
     const proposedMarkerInstance = useRef(null)
 
     const [selectedCoordinates, setSelectedCoordinates] = useState(null)
+    const [isSaving, setIsSaving] = useState(false)
 
 
   useEffect(() => {
@@ -137,7 +139,7 @@ map.on("click", (event) => {
 
   
 const saveMissionLocation = async () => {
-  if (!mission?.id || !selectedCoordinates) return
+  if (!mission?.id || !selectedCoordinates || isSaving) return
 
   const confirmed = window.confirm(
     `Save this location for "${mission.name}"?\n\n` +
@@ -146,11 +148,12 @@ const saveMissionLocation = async () => {
   )
 
   if (!confirmed) return
+  setIsSaving(true)
 
   try {
 
       const response = await fetch(
-        `http://localhost:8000/missions/${mission.id}/location`,
+        `${API_BASE_URL}/missions/${mission.id}/location`,
         {
           method: "PATCH",
           headers: {
@@ -180,12 +183,14 @@ onNotify?.({
   type: "success",
   message: "Mission location saved successfully!",
 })
-    } catch (error) {
+        } catch (error) {
       console.error(error)
       onNotify?.({
-  type: "error",
-  message: "Unable to save mission location.",
-})
+        type: "error",
+        message: "Unable to save mission location.",
+      })
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -227,11 +232,12 @@ onNotify?.({
 {mission && selectedCoordinates && (
   <div className="mission-map-actions">
     <button
-      type="button"
-      onClick={saveMissionLocation}
-    >
-      Save Mission Location
-    </button>
+  type="button"
+  onClick={saveMissionLocation}
+  disabled={isSaving}
+>
+  {isSaving ? "Saving..." : "Save Mission Location"}
+</button>
 
     <button
       type="button"

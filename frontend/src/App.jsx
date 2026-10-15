@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import './App.css'
 import MissionHistory from './components/MissionHistory'
 import MissionMap from './components/MissionMap'
+import { API_BASE_URL } from './config'
 
 
 function App() {
@@ -30,7 +31,7 @@ function App() {
 
   useEffect(() => {
   // Load teams
-  fetch("http://127.0.0.1:8000/teams")
+  fetch(`${API_BASE_URL}/teams`)
   .then((response) => {
     if (!response.ok) {
       throw new Error("Failed to load teams")
@@ -64,7 +65,7 @@ if (data.missions.length > 0) {
     })
 
   // Load users
-  fetch("http://127.0.0.1:8000/users")
+  fetch(`${API_BASE_URL}/users`)
     .then((response) => response.json())
     .then((data) => setUsers(data.users))
     .catch((error) => {
@@ -86,16 +87,16 @@ const [
   activityResponse
 ] = await Promise.all([
   fetch(
-    `http://127.0.0.1:8000/missions/${selectedMissionId}/members`
+  `${API_BASE_URL}/missions/${selectedMissionId}/members`
+),
+  fetch(
+    `${API_BASE_URL}/missions/${selectedMissionId}/hours`
   ),
   fetch(
-    `http://127.0.0.1:8000/missions/${selectedMissionId}/hours`
+    `${API_BASE_URL}/missions/${selectedMissionId}/team`
   ),
   fetch(
-    `http://127.0.0.1:8000/missions/${selectedMissionId}/team`
-  ),
-  fetch(
-    `http://127.0.0.1:8000/missions/${selectedMissionId}/activity`
+    `${API_BASE_URL}/missions/${selectedMissionId}/activity`
   )
 ])
 
@@ -139,7 +140,7 @@ const [
 
   try {
     const response = await fetch(
-      `http://127.0.0.1:8000/teams/${teamId}/members/${userId}`,
+      `${API_BASE_URL}/teams/${teamId}/members/${userId}`,
       {
         method: "DELETE"
       }
@@ -152,7 +153,7 @@ const [
 
     // Refresh the current mission's team members
     const teamResponse = await fetch(
-      `http://127.0.0.1:8000/missions/${selectedMissionId}/team`
+      `${API_BASE_URL}/missions/${selectedMissionId}/team`
     )
 
     if (!teamResponse.ok) {
@@ -189,7 +190,7 @@ setNotification({
 
   try {
     const response = await fetch(
-      `http://127.0.0.1:8000/teams/${assignmentTeamId}/members`,
+      `${API_BASE_URL}/teams/${assignmentTeamId}/members`,
       {
         method: "POST",
         headers: {
@@ -224,7 +225,7 @@ setNotification({
 
     if (selectedMission?.team_id === Number(assignmentTeamId)) {
       const teamResponse = await fetch(
-        `http://127.0.0.1:8000/missions/${selectedMissionId}/team`
+        `${API_BASE_URL}/missions/${selectedMissionId}/team`
       )
 
       if (!teamResponse.ok) {
@@ -258,7 +259,7 @@ setNotification({
 
   try {
     const response = await fetch(
-      "http://127.0.0.1:8000/teams",
+      `${API_BASE_URL}/teams`,
       {
         method: "POST",
         headers: {
@@ -319,7 +320,7 @@ setNotification({
 
   try {
     const response = await fetch(
-      "http://127.0.0.1:8000/missions",
+      `${API_BASE_URL}/missions`,
       {
         method: "POST",
         headers: {
@@ -377,7 +378,7 @@ async function startMission(missionId) {
 if (!confirmed) return
   try {
     const response = await fetch(
-      `http://127.0.0.1:8000/missions/${missionId}/start`,
+      `${API_BASE_URL}/missions/${missionId}/start`,
       { method: "POST" }
     )
 
@@ -398,7 +399,7 @@ if (!confirmed) return
     // Refresh activity for the selected mission
     if (selectedMissionId === missionId) {
       const activityResponse = await fetch(
-        `http://127.0.0.1:8000/missions/${missionId}/activity`
+        `${API_BASE_URL}/missions/${missionId}/activity`
       )
 
       if (!activityResponse.ok) {
@@ -436,7 +437,7 @@ async function completeMission(missionId) {
 if (!confirmed) return
   try {
     const response = await fetch(
-      `http://127.0.0.1:8000/missions/${missionId}/complete`,
+      `${API_BASE_URL}/missions/${missionId}/complete`,
       { method: "POST" }
     )
 
@@ -457,7 +458,7 @@ if (!confirmed) return
     // Refresh activity for the selected mission
     if (selectedMissionId === missionId) {
       const activityResponse = await fetch(
-        `http://127.0.0.1:8000/missions/${missionId}/activity`
+        `${API_BASE_URL}/missions/${missionId}/activity`
       )
 
       if (!activityResponse.ok) {
@@ -504,7 +505,7 @@ setUpdatingResponder(id)
 
   try {
     const response = await fetch(
-      `http://127.0.0.1:8000/missions/${selectedMissionId}/${action}`,
+      `${API_BASE_URL}/missions/${selectedMissionId}/${action}`,
       {
         method: "POST",
         headers: {
@@ -522,7 +523,7 @@ setUpdatingResponder(id)
 
     // Reload participation records
     const sessionsResponse = await fetch(
-      `http://127.0.0.1:8000/missions/${selectedMissionId}/members`
+      `${API_BASE_URL}/missions/${selectedMissionId}/members`
     )
 
     if (!sessionsResponse.ok) {
@@ -535,7 +536,7 @@ setUpdatingResponder(id)
 
     // Reload mission hours
     const hoursResponse = await fetch(
-      `http://127.0.0.1:8000/missions/${selectedMissionId}/hours`
+      `${API_BASE_URL}/missions/${selectedMissionId}/hours`
     )
 
     if (!hoursResponse.ok) {
@@ -547,7 +548,7 @@ setUpdatingResponder(id)
 
     // Reload mission activity
     const activityResponse = await fetch(
-      `http://127.0.0.1:8000/missions/${selectedMissionId}/activity`
+      `${API_BASE_URL}/missions/${selectedMissionId}/activity`
     )
 
     if (!activityResponse.ok) {
