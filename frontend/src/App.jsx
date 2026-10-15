@@ -534,110 +534,145 @@ function App() {
     (member) => member.checked_out_at === null,
   ).length
 
+  const selectedMission = missions.find(
+    (mission) => mission.id === selectedMissionId,
+  )
+  const selectedMissionHours = missionHours.reduce(
+    (total, member) => total + Number(member.total_hours || 0),
+    0,
+  )
+
   return (
     <div className="app-shell">
       <aside className="app-sidebar">
-        <div className="sidebar-brand">
-          <span className="brand-symbol">▲</span>
-          <div>
+        <a
+          className="sidebar-brand"
+          href="#dashboard"
+          aria-label="Mission Tracker home"
+        >
+          <span className="brand-symbol" aria-hidden="true">
+            ▲
+          </span>
+          <span className="sidebar-brand-copy">
             <strong>MISSION TRACKER</strong>
             <small>OPERATIONS CENTER</small>
-          </div>
-        </div>
+          </span>
+        </a>
 
         <div className="sidebar-section-label">WORKSPACE</div>
-
         <nav className="sidebar-navigation" aria-label="Main navigation">
           <a href="#dashboard" className="sidebar-link sidebar-link-active">
-            ◈ Dashboard
+            ◈ <span>Dashboard</span>
           </a>
           <a href="#mission-history" className="sidebar-link">
-            ◉ Missions
+            ◉ <span>Missions</span>
           </a>
           <a href="#currently-checked-in" className="sidebar-link">
-            ◇ Responders
+            ◇ <span>Responders</span>
           </a>
           <a href="#mission-activity" className="sidebar-link">
-            ◷ Activity
+            ◷ <span>Activity</span>
+          </a>
+          <a href="#team-management" className="sidebar-link">
+            ♧ <span>Teams & users</span>
           </a>
         </nav>
 
         <div className="sidebar-footer">
           <span className="sidebar-status-dot" />
-          System Online
+          <span>System Online</span>
         </div>
       </aside>
 
       <main className="app-container" id="dashboard">
         <header className="dashboard-header">
           <div>
+            <span className="panel-eyebrow">OPERATIONS CENTER</span>
             <h1>Mission Tracker</h1>
-            <p>Mission management dashboard</p>
+            <p>Track missions, teams, and responder activity.</p>
           </div>
-          <section className="dashboard-stats">
-            <div
-              className="stat-card stat-card-clickable"
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                document.getElementById('active-missions')?.scrollIntoView({
-                  behavior: 'smooth',
-                })
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  event.currentTarget.click()
-                }
-              }}
-            >
-              <h3>Active Missions</h3>
-              <p>{activeMissionCount}</p>
-            </div>
-
-            <button
-              type="button"
-              className="stat-card stat-card-clickable"
-              onClick={() => {
-                document.getElementById('completed-missions')?.scrollIntoView({
-                  behavior: 'smooth',
-                })
-              }}
-            >
-              <h3>Completed Missions</h3>
-              <p>{completedMissionCount}</p>
-            </button>
-
-            <button
-              type="button"
-              className="stat-card stat-card-clickable"
-              onClick={() => {
-                document.getElementById('mission-history')?.scrollIntoView({
-                  behavior: 'smooth',
-                })
-              }}
-            >
-              <h3>Total Missions</h3>
-              <p>{totalMissionCount}</p>
-            </button>
-
-            <button
-              type="button"
-              className="stat-card stat-card-clickable"
-              onClick={() => {
-                document
-                  .getElementById('currently-checked-in')
-                  ?.scrollIntoView({
-                    behavior: 'smooth',
-                  })
-              }}
-            >
-              <h3>Responders Deployed</h3>
-              <p>{deployedResponderCount}</p>
-              <span className="stat-description">Selected mission only</span>
-            </button>
-          </section>
+          <a
+            className="primary-action header-action"
+            href="#create-mission-form"
+          >
+            ＋ Create Mission
+          </a>
         </header>
+
+        <section className="dashboard-stats" aria-label="Mission statistics">
+          <button
+            type="button"
+            className="stat-card stat-card-clickable"
+            onClick={() =>
+              document
+                .getElementById('active-missions')
+                ?.scrollIntoView({ behavior: 'smooth' })
+            }
+          >
+            <span className="stat-card-top">
+              <span>Active Missions</span>
+              <span className="stat-icon stat-icon-active" aria-hidden="true">
+                ▶
+              </span>
+            </span>
+            <strong>{activeMissionCount}</strong>
+            <small className="stat-description">Currently in progress</small>
+          </button>
+          <button
+            type="button"
+            className="stat-card stat-card-clickable"
+            onClick={() =>
+              document
+                .getElementById('completed-missions')
+                ?.scrollIntoView({ behavior: 'smooth' })
+            }
+          >
+            <span className="stat-card-top">
+              <span>Completed Missions</span>
+              <span className="stat-icon stat-icon-hours" aria-hidden="true">
+                ✓
+              </span>
+            </span>
+            <strong>{completedMissionCount}</strong>
+            <small className="stat-description">Successfully completed</small>
+          </button>
+          <button
+            type="button"
+            className="stat-card stat-card-clickable"
+            onClick={() =>
+              document
+                .getElementById('mission-history')
+                ?.scrollIntoView({ behavior: 'smooth' })
+            }
+          >
+            <span className="stat-card-top">
+              <span>Total Missions</span>
+              <span className="stat-icon stat-icon-map" aria-hidden="true">
+                ▤
+              </span>
+            </span>
+            <strong>{totalMissionCount}</strong>
+            <small className="stat-description">Across all missions</small>
+          </button>
+          <button
+            type="button"
+            className="stat-card stat-card-clickable"
+            onClick={() =>
+              document
+                .getElementById('currently-checked-in')
+                ?.scrollIntoView({ behavior: 'smooth' })
+            }
+          >
+            <span className="stat-card-top">
+              <span>Responders Deployed</span>
+              <span className="stat-icon stat-icon-people" aria-hidden="true">
+                ♧
+              </span>
+            </span>
+            <strong>{deployedResponderCount}</strong>
+            <small className="stat-description">Selected mission only</small>
+          </button>
+        </section>
 
         {notification && (
           <div
@@ -645,7 +680,6 @@ function App() {
             role="alert"
           >
             <span>{notification.message}</span>
-
             <button
               type="button"
               onClick={() => setNotification(null)}
@@ -656,349 +690,521 @@ function App() {
           </div>
         )}
 
-        <MissionMap
-          mission={missions.find((m) => m.id === selectedMissionId) ?? null}
-          onLocationSaved={(updatedMission) => {
-            setMissions((currentMissions) =>
-              currentMissions.map((mission) =>
-                mission.id === updatedMission.id
-                  ? { ...mission, ...updatedMission }
-                  : mission,
-              ),
-            )
-          }}
-          onNotify={setNotification}
-        />
+        <section
+          className="dashboard-primary-grid"
+          aria-label="Current mission overview"
+        >
+          <section className="selected-mission-details panel-card">
+            {loadingMission ? (
+              <p role="status">Loading mission details…</p>
+            ) : selectedMission ? (
+              <>
+                <div className="mission-detail-header">
+                  <div>
+                    <span className="panel-eyebrow">CURRENT MISSION</span>
+                    <h2 className="mission-detail-name">
+                      {selectedMission.name}
+                    </h2>
+                    <p className="mission-detail-subtitle">
+                      {selectedMission.location || 'Location not specified'}
+                      {selectedMission.team_name
+                        ? ` · ${selectedMission.team_name}`
+                        : ''}
+                    </p>
+                  </div>
+                  <span
+                    className={`mission-status-badge ${selectedMission.ended_at ? 'status-completed' : selectedMission.started_at ? 'status-active' : 'status-pending'}`}
+                  >
+                    {selectedMission.ended_at
+                      ? 'Completed'
+                      : selectedMission.started_at
+                        ? 'Active'
+                        : 'Not Started'}
+                  </span>
+                </div>
 
-        <section className="dashboard-panel">
-          <div id="mission-history">
+                <div className="mission-info-grid">
+                  <div className="mission-info-item">
+                    <span>START TIME</span>
+                    <strong>
+                      {selectedMission.started_at
+                        ? new Date(selectedMission.started_at).toLocaleString()
+                        : 'Not started'}
+                    </strong>
+                  </div>
+                  <div className="mission-info-item">
+                    <span>LOCATION</span>
+                    <strong>
+                      {selectedMission.location || 'Not specified'}
+                    </strong>
+                  </div>
+                  <div className="mission-info-item">
+                    <span>TEAM</span>
+                    <strong>{selectedMission.team_name || 'Unassigned'}</strong>
+                  </div>
+                  <div className="mission-info-item">
+                    <span>MISSION ID</span>
+                    <strong>#{selectedMission.id}</strong>
+                  </div>
+                </div>
+
+                <div className="mission-metric-grid">
+                  <div className="mission-metric-card">
+                    <span>Mission Hours</span>
+                    <strong>{selectedMissionHours.toFixed(2)}</strong>
+                    <small>Total responder hours</small>
+                  </div>
+                  <div className="mission-metric-card">
+                    <span>Responders</span>
+                    <strong>{deployedResponderCount}</strong>
+                    <small>Currently checked in</small>
+                  </div>
+                  <div className="mission-metric-card">
+                    <span>Activity</span>
+                    <strong>{missionActivity.length}</strong>
+                    <small>Recorded events</small>
+                  </div>
+                </div>
+
+                <div className="mission-lifecycle-actions">
+                  {!selectedMission.started_at && !selectedMission.ended_at && (
+                    <button
+                      type="button"
+                      className="button-primary"
+                      onClick={() => startMission(selectedMission.id)}
+                    >
+                      Start Mission
+                    </button>
+                  )}
+                  {selectedMission.started_at && !selectedMission.ended_at && (
+                    <button
+                      type="button"
+                      className="button-danger"
+                      onClick={() => completeMission(selectedMission.id)}
+                    >
+                      Complete Mission
+                    </button>
+                  )}
+                  <label
+                    className="mission-select-label"
+                    htmlFor="selected-mission-select"
+                  >
+                    Switch mission
+                  </label>
+                  <select
+                    id="selected-mission-select"
+                    value={selectedMissionId ?? ''}
+                    onChange={(event) =>
+                      setSelectedMissionId(Number(event.target.value))
+                    }
+                    aria-label="Select active mission"
+                  >
+                    {missions.map((mission) => (
+                      <option key={mission.id} value={mission.id}>
+                        {mission.name} — {mission.location}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            ) : (
+              <div className="empty-state">
+                <span className="panel-eyebrow">CURRENT MISSION</span>
+                <h2>No mission selected</h2>
+                <p>
+                  Create a mission to start coordinating responders and tracking
+                  activity.
+                </p>
+                <a className="primary-action" href="#create-mission-form">
+                  Create your first mission
+                </a>
+              </div>
+            )}
+          </section>
+
+          <MissionMap
+            mission={selectedMission ?? null}
+            onLocationSaved={(updatedMission) => {
+              setMissions((currentMissions) =>
+                currentMissions.map((mission) =>
+                  mission.id === updatedMission.id
+                    ? { ...mission, ...updatedMission }
+                    : mission,
+                ),
+              )
+            }}
+            onNotify={setNotification}
+          />
+        </section>
+
+        <section
+          className="dashboard-operations-grid"
+          aria-label="Mission operations"
+        >
+          <section className="panel-card operations-card responders-card">
+            <div className="panel-heading-row">
+              <div>
+                <span className="panel-eyebrow">FIELD TEAM</span>
+                <h2 id="currently-checked-in">Responders</h2>
+              </div>
+              <span className="panel-count">{teamMembers.length}</span>
+            </div>
+            {!selectedMission ? (
+              <p className="empty-copy">
+                Select a mission to view its assigned team.
+              </p>
+            ) : teamMembers.length === 0 ? (
+              <p className="empty-copy">
+                No responders assigned to this mission’s team.
+              </p>
+            ) : (
+              <div className="responder-table">
+                {teamMembers.map((user) => {
+                  const activeSession = missionMembers.find(
+                    (session) =>
+                      session.id === user.id && session.checked_out_at === null,
+                  )
+                  const isCheckedIn = Boolean(activeSession)
+                  const missionIsActive = Boolean(
+                    selectedMission.started_at && !selectedMission.ended_at,
+                  )
+                  return (
+                    <div className="responder-row" key={user.id}>
+                      <div className="responder-avatar" aria-hidden="true">
+                        {user.name
+                          .split(/\s+/)
+                          .map((part) => part[0])
+                          .join('')
+                          .slice(0, 2)
+                          .toUpperCase()}
+                      </div>
+                      <div className="responder-identity">
+                        <strong>{user.name}</strong>
+                        <small>
+                          {isCheckedIn
+                            ? `Checked in · ${new Date(activeSession.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                            : 'Not checked in'}
+                        </small>
+                      </div>
+                      <span
+                        className={`responder-state ${isCheckedIn ? 'responder-state-active' : ''}`}
+                      >
+                        {isCheckedIn ? 'IN FIELD' : 'OFF DUTY'}
+                      </span>
+                      <button
+                        type="button"
+                        className="button-secondary responder-action"
+                        disabled={
+                          updatingResponder !== null ||
+                          (!isCheckedIn && !missionIsActive)
+                        }
+                        onClick={() => toggleStatus(user.id, isCheckedIn)}
+                      >
+                        {updatingResponder === user.id
+                          ? isCheckedIn
+                            ? 'Checking out…'
+                            : 'Checking in…'
+                          : isCheckedIn
+                            ? 'Check Out'
+                            : 'Check In'}
+                      </button>
+                      <button
+                        type="button"
+                        className="button-quiet responder-remove"
+                        disabled={isCheckedIn}
+                        onClick={() =>
+                          removeTeamMember(selectedMission.team_id, user.id)
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+
+          <section className="panel-card operations-card activity-card">
+            <div className="panel-heading-row">
+              <div>
+                <span className="panel-eyebrow">MISSION LOG</span>
+                <h2 id="mission-activity">Recent Activity</h2>
+              </div>
+              <span className="panel-count">{missionActivity.length}</span>
+            </div>
+            {missionActivity.length === 0 ? (
+              <p className="empty-copy">
+                No activity recorded for this mission yet.
+              </p>
+            ) : (
+              <div className="activity-timeline">
+                {missionActivity.slice(0, 8).map((event) => (
+                  <div key={event.id} className="activity-item">
+                    <span className="activity-marker" aria-hidden="true" />
+                    <div>
+                      <strong>
+                        {event.event_type === 'responder_checked_in'
+                          ? `${event.responder_name || 'Unknown responder'} checked in`
+                          : event.event_type === 'responder_checked_out'
+                            ? `${event.responder_name || 'Unknown responder'} checked out`
+                            : event.description ||
+                              event.event_type ||
+                              'Mission updated'}
+                      </strong>
+                      <small>
+                        {new Date(event.created_at).toLocaleString()}
+                      </small>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <div
+            className="dashboard-overview-history panel-card"
+            id="mission-history"
+          >
             <MissionHistory
               missions={missions}
               selectedMissionId={selectedMissionId}
               onSelectMission={setSelectedMissionId}
             />
           </div>
+        </section>
 
-          {loadingMission ? (
-            <p role="status">Loading mission details...</p>
+        <section className="panel-card hours-panel" id="responder-hours">
+          <div className="panel-heading-row">
+            <div>
+              <span className="panel-eyebrow">TIME ACCOUNTING</span>
+              <h2>Responder Hours</h2>
+            </div>
+            <span className="panel-count">{missionHours.length}</span>
+          </div>
+          {missionHours.length === 0 ? (
+            <p className="empty-copy">No responder hours recorded yet.</p>
           ) : (
-            missions
-              .filter((mission) => mission.id === selectedMissionId)
-              .map((mission) => (
-                <section key={mission.id} className="selected-mission-details">
-                  <div className="mission-detail-header">
-                    <div>
-                      <span className="panel-eyebrow">MISSION OVERVIEW</span>
-                      <h2>Selected Mission</h2>
-                    </div>
-
-                    <span
-                      className={`mission-status-badge ${
-                        mission.ended_at
-                          ? 'status-completed'
-                          : mission.started_at
-                            ? 'status-active'
-                            : 'status-pending'
-                      }`}
-                    >
-                      {mission.ended_at
-                        ? 'Completed'
-                        : mission.started_at
-                          ? 'Active'
-                          : 'Not Started'}
-                    </span>
+            <div className="hours-list">
+              {missionHours.map((member) => (
+                <div className="hours-row" key={member.id}>
+                  <div>
+                    <strong>{member.name}</strong>
+                    <small>{member.session_count} sessions</small>
                   </div>
-
-                  <h3 className="mission-detail-name">{mission.name}</h3>
-
-                  <div className="mission-info-grid">
-                    <div className="mission-info-item">
-                      <span>LOCATION</span>
-                      <strong>{mission.location}</strong>
-                    </div>
-
-                    <div className="mission-info-item">
-                      <span>ASSIGNED TEAM</span>
-                      <strong>{mission.team_name}</strong>
-                    </div>
-
-                    <div className="mission-info-item">
-                      <span>MISSION ID</span>
-                      <strong>#{mission.id}</strong>
-                    </div>
-                  </div>
-
-                  {!mission.started_at && !mission.ended_at && (
-                    <button
-                      type="button"
-                      onClick={() => startMission(mission.id)}
-                    >
-                      Start Mission
-                    </button>
-                  )}
-
-                  {mission.started_at && !mission.ended_at && (
-                    <button
-                      type="button"
-                      onClick={() => completeMission(mission.id)}
-                    >
-                      Complete Mission
-                    </button>
-                  )}
-
-                  <h3>Responder Hours</h3>
-                  <p>
-                    <strong>Total Mission Hours: </strong>
-                    {missionHours
-                      .reduce(
-                        (total, member) =>
-                          total + Number(member.total_hours || 0),
-                        0,
-                      )
-                      .toFixed(2)}
-                  </p>
-
-                  {missionHours.length === 0 ? (
-                    <p>No responder hours recorded yet.</p>
-                  ) : (
-                    <div>
-                      {missionHours.map((member) => (
-                        <div key={member.id}>
-                          <strong>{member.name}</strong>
-                          <span>
-                            {' '}
-                            — {Number(member.total_hours).toFixed(2)} hours
-                          </span>
-                          <span> ({member.session_count} sessions)</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <h3 id="currently-checked-in">Currently Checked In</h3>
-
-                  {missionMembers.filter(
-                    (member) => member.checked_out_at === null,
-                  ).length === 0 ? (
-                    <p>No responders currently checked in.</p>
-                  ) : (
-                    <div>
-                      {missionMembers
-                        .filter((member) => member.checked_out_at === null)
-                        .map((member, index) => (
-                          <div key={index}>
-                            <strong>{member.name}</strong>
-                            <span>
-                              {' '}
-                              — Checked in at{' '}
-                              {new Date(member.checked_in_at).toLocaleString()}
-                            </span>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-
-                  <h3>Mission Activity Log</h3>
-
-                  {missionActivity.length === 0 ? (
-                    <p>No activity recorded for this mission yet.</p>
-                  ) : (
-                    <div className="mission-activity-log">
-                      {missionActivity.map((event) => (
-                        <div key={event.id} className="mission-activity-event">
-                          <strong>
-                            {event.event_type === 'responder_checked_in'
-                              ? `${event.responder_name || 'Unknown responder'} checked into the mission`
-                              : event.event_type === 'responder_checked_out'
-                                ? `${event.responder_name || 'Unknown responder'} checked out of the mission`
-                                : event.description}
-                          </strong>
-                          <p>{new Date(event.created_at).toLocaleString()}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              ))
+                  <strong>
+                    {Number(member.total_hours || 0).toFixed(2)} hrs
+                  </strong>
+                </div>
+              ))}
+            </div>
           )}
         </section>
-        <h2>Database Users</h2>
 
-        {users.map((user) => (
-          <div key={user.id}>
-            {user.name} — {user.email}
-          </div>
-        ))}
-        <h2>Teams</h2>
-
-        {teams.map((team) => (
-          <div key={team.id}>{team.name}</div>
-        ))}
-
-        <h2>Create Team</h2>
-
-        <form onSubmit={createTeam}>
-          <input
-            type="text"
-            placeholder="Team name"
-            value={newTeamName}
-            onChange={(event) => setNewTeamName(event.target.value)}
-            required
-          />
-
-          <button type="submit" disabled={creatingTeam}>
-            {creatingTeam ? 'Creating...' : 'Create Team'}
-          </button>
-        </form>
-
-        <h2>Assign Team Member</h2>
-
-        <form onSubmit={assignTeamMember}>
-          <select
-            value={assignmentTeamId}
-            onChange={(event) => setAssignmentTeamId(event.target.value)}
-            required
-          >
-            <option value="">Select team</option>
-
-            {teams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={assignmentUserId}
-            onChange={(event) => setAssignmentUserId(event.target.value)}
-            required
-          >
-            <option value="">Select user</option>
-
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.name}
-              </option>
-            ))}
-          </select>
-
-          <button type="submit" disabled={assigningMember}>
-            {assigningMember ? 'Assigning...' : 'Assign Member'}
-          </button>
-        </form>
-        <h2>Create Mission</h2>
-
-        <form onSubmit={createMission}>
-          <input
-            type="text"
-            placeholder="Mission name"
-            value={newMissionName}
-            onChange={(event) => setNewMissionName(event.target.value)}
-            required
-          />
-
-          <input
-            type="text"
-            placeholder="Location"
-            value={newMissionLocation}
-            onChange={(event) => setNewMissionLocation(event.target.value)}
-            required
-          />
-
-          <button type="submit" disabled={creatingMission}>
-            {creatingMission ? 'Creating...' : 'Create Mission'}
-          </button>
-          <select
-            value={newMissionTeamId}
-            onChange={(event) => setNewMissionTeamId(event.target.value)}
-            required
-          >
-            <option value="">Select a team</option>
-
-            {teams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name}
-              </option>
-            ))}
-          </select>
-        </form>
-        <h2>Active Mission</h2>
-
-        <select
-          value={selectedMissionId ?? ''}
-          onChange={(event) => setSelectedMissionId(Number(event.target.value))}
-        >
-          {missions.map((mission) => (
-            <option key={mission.id} value={mission.id}>
-              {mission.name} — {mission.location}
-            </option>
-          ))}
-        </select>
-
-        <h2>Team Members</h2>
-
-        {teamMembers.map((user) => {
-          const activeSession = missionMembers.find(
-            (session) =>
-              session.id === user.id && session.checked_out_at === null,
-          )
-
-          const isCheckedIn = Boolean(activeSession)
-
-          return (
-            <div key={user.id}>
-              <strong>{user.name}</strong>
-
-              <span> — {isCheckedIn ? 'Checked In' : 'Checked Out'}</span>
-
-              {activeSession && (
-                <span>
-                  {' '}
-                  — Check in:{' '}
-                  {new Date(activeSession.checked_in_at).toLocaleTimeString()}
-                </span>
-              )}
-
-              <button
-                type="button"
-                disabled={
-                  updatingResponder !== null ||
-                  (!isCheckedIn &&
-                    !missions.some(
-                      (mission) =>
-                        mission.id === selectedMissionId &&
-                        mission.started_at &&
-                        !mission.ended_at,
-                    ))
-                }
-                onClick={() => toggleStatus(user.id, isCheckedIn)}
-              >
-                {updatingResponder === user.id
-                  ? isCheckedIn
-                    ? 'Checking Out...'
-                    : 'Checking In...'
-                  : isCheckedIn
-                    ? 'Check Out'
-                    : 'Check In'}
-              </button>
-
-              <button
-                type="button"
-                disabled={isCheckedIn}
-                onClick={() => {
-                  const selectedMission = missions.find(
-                    (mission) => mission.id === Number(selectedMissionId),
-                  )
-
-                  if (selectedMission) {
-                    removeTeamMember(selectedMission.team_id, user.id)
-                  }
-                }}
-              >
-                Remove from Team
-              </button>
+        <section className="management-section" id="team-management">
+          <div className="management-section-heading">
+            <div>
+              <span className="panel-eyebrow">ADMINISTRATION</span>
+              <h2>Team & User Management</h2>
             </div>
-          )
-        })}
+            <p>Manage responder accounts, teams, and mission assignments.</p>
+          </div>
+
+          <div className="management-grid">
+            <section className="panel-card management-card users-card">
+              <div className="panel-heading-row">
+                <h3>♧ Database Users</h3>
+                <span className="panel-count">{users.length}</span>
+              </div>
+              {users.length === 0 ? (
+                <p className="empty-copy">No users found.</p>
+              ) : (
+                <div className="table-scroll">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map((user) => (
+                        <tr key={user.id}>
+                          <td>{user.name}</td>
+                          <td>{user.email}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
+            <section className="panel-card management-card teams-card">
+              <div className="panel-heading-row">
+                <h3>♧ Teams</h3>
+                <span className="panel-count">{teams.length}</span>
+              </div>
+              {teams.length === 0 ? (
+                <p className="empty-copy">No teams created yet.</p>
+              ) : (
+                <div className="team-list">
+                  {teams.map((team) => (
+                    <div className="team-list-row" key={team.id}>
+                      <span className="team-mark" aria-hidden="true">
+                        ◆
+                      </span>
+                      <span>{team.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <div className="management-form-stack">
+              <section className="panel-card management-card">
+                <div className="panel-heading-row">
+                  <h3>Create Team</h3>
+                </div>
+                <form className="management-form" onSubmit={createTeam}>
+                  <label htmlFor="new-team-name">Team name</label>
+                  <div className="form-inline-row">
+                    <input
+                      id="new-team-name"
+                      type="text"
+                      placeholder="Enter team name"
+                      value={newTeamName}
+                      onChange={(event) => setNewTeamName(event.target.value)}
+                      required
+                    />
+                    <button
+                      type="submit"
+                      className="button-primary"
+                      disabled={creatingTeam}
+                    >
+                      {creatingTeam ? 'Creating…' : 'Create Team'}
+                    </button>
+                  </div>
+                </form>
+              </section>
+
+              <section className="panel-card management-card">
+                <div className="panel-heading-row">
+                  <h3>Assign Team Member</h3>
+                </div>
+                <form className="management-form" onSubmit={assignTeamMember}>
+                  <div className="form-grid-two">
+                    <div>
+                      <label htmlFor="assignment-team">Select team</label>
+                      <select
+                        id="assignment-team"
+                        value={assignmentTeamId}
+                        onChange={(event) =>
+                          setAssignmentTeamId(event.target.value)
+                        }
+                        required
+                      >
+                        <option value="">Select team</option>
+                        {teams.map((team) => (
+                          <option key={team.id} value={team.id}>
+                            {team.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="assignment-user">Select user</label>
+                      <select
+                        id="assignment-user"
+                        value={assignmentUserId}
+                        onChange={(event) =>
+                          setAssignmentUserId(event.target.value)
+                        }
+                        required
+                      >
+                        <option value="">Select user</option>
+                        {users.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    className="button-primary form-submit"
+                    disabled={assigningMember}
+                  >
+                    {assigningMember ? 'Assigning…' : 'Assign Member'}
+                  </button>
+                </form>
+              </section>
+
+              <section
+                className="panel-card management-card"
+                id="create-mission-form"
+              >
+                <div className="panel-heading-row">
+                  <h3>Create Mission</h3>
+                </div>
+                <form className="management-form" onSubmit={createMission}>
+                  <div>
+                    <label htmlFor="new-mission-name">Mission name</label>
+                    <input
+                      id="new-mission-name"
+                      type="text"
+                      placeholder="Mission name"
+                      value={newMissionName}
+                      onChange={(event) =>
+                        setNewMissionName(event.target.value)
+                      }
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="new-mission-location">Location</label>
+                    <input
+                      id="new-mission-location"
+                      type="text"
+                      placeholder="Location"
+                      value={newMissionLocation}
+                      onChange={(event) =>
+                        setNewMissionLocation(event.target.value)
+                      }
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="new-mission-team">Assigned team</label>
+                    <select
+                      id="new-mission-team"
+                      value={newMissionTeamId}
+                      onChange={(event) =>
+                        setNewMissionTeamId(event.target.value)
+                      }
+                      required
+                    >
+                      <option value="">Select a team</option>
+                      {teams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="submit"
+                    className="button-primary form-submit"
+                    disabled={creatingMission}
+                  >
+                    {creatingMission ? 'Creating…' : 'Create Mission'}
+                  </button>
+                </form>
+              </section>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   )
