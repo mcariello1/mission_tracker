@@ -89,7 +89,9 @@
   color: #9aa9bd;
   font-size: 12px;
   text-decoration: none;
-  transition: background 160ms ease, color 160ms ease;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
 }
 
 .sidebar-link:hover,
@@ -170,7 +172,10 @@
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
 }
 
 .primary-action,
@@ -254,7 +259,9 @@ button:disabled {
 
 .stat-card-clickable {
   cursor: pointer;
-  transition: border-color 160ms ease, transform 160ms ease;
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease;
 }
 
 .stat-card-clickable:hover {
@@ -810,7 +817,9 @@ button:disabled {
   background: #142235;
   color: #e7eef8;
   cursor: pointer;
-  transition: background 150ms ease, border-color 150ms ease;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease;
 }
 
 .history-mission h3 {
