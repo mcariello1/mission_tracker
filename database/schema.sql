@@ -23,6 +23,8 @@ CREATE TABLE missions (
     team_id BIGINT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
     name VARCHAR(200) NOT NULL,
     location VARCHAR(200),
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
     started_at TIMESTAMPTZ,
     ended_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
