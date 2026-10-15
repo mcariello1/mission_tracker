@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# Environment variables
+.env
+.env.*
+
+# Playwright artifacts
+playwright-report/
+test-results/
+
+# Frontend dependencies
+node_modules/
