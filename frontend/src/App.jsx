@@ -43,7 +43,7 @@ function App() {
     console.error("Error fetching teams:", error)
   })
   // Load missions
-  fetch("http://127.0.0.1:8000/missions")
+  fetch(`${API_BASE_URL}/missions`)
     .then((response) => response.json())
     .then((data) => {
       setMissions(data.missions)

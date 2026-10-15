@@ -1,0 +1,138 @@
+
+name: Mission Tracker CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mission_tracker_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_NAME: mission_tracker_test
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: localhost
+      DB_PORT: 5432
+      PYTHON_PATH: python
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Initialize test database
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: mission_tracker_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -f database/schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/migrations/001_unique_active_checkin.sql
+          psql -v ON_ERROR_STOP=1 -f backend/migrations/002_mission_activity_log.sql
+          psql -v ON_ERROR_STOP=1 -f database/seed.sql
+
+      - name: Run backend tests
+        run: |
+          python -m pytest backend/tests -v
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Start FastAPI test server
+        run: |
+          python -m uvicorn backend.main:app \
+            --host 127.0.0.1 \
+            --port 8001 > /tmp/fastapi.log 2>&1 &
+
+      - name: Start React test server
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: http://127.0.0.1:8001
+        run: |
+          npm run dev -- \
+            --host 127.0.0.1 \
+            --port 5174 \
+            --strictPort > /tmp/vite.log 2>&1 &
+
+      - name: Wait for servers
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8001/health > /dev/null &&
+               curl -fsS http://127.0.0.1:5174/ > /dev/null; then
+              echo "Both servers are ready"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          cat /tmp/fastapi.log
+          cat /tmp/vite.log
+          exit 1
+
+      - name: Run Playwright tests
+        working-directory: frontend
+        run: npx playwright test --project=chromium
+
+      - name: Upload Playwright reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          if-no-files-found: ignore
+
+      - name: Upload server logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs
+          path: |
+            /tmp/fastapi.log
+            /tmp/vite.log
+          if-no-files-found: ignore
+
+
+
+
