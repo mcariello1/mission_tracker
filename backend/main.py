@@ -1,30 +1,34 @@
-from psycopg2.extras import RealDictCursor
-from fastapi.middleware.cors import CORSMiddleware
-from backend.database import get_connection
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 from psycopg2.errors import UniqueViolation
+from psycopg2.extras import RealDictCursor
+from pydantic import BaseModel
+
+from backend.database import get_connection
 
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
-],
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
 class CheckInRequest(BaseModel):
     user_id: int
+
 
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
 
 @app.get("/users")
 def get_users():
@@ -38,6 +42,7 @@ def get_users():
     conn.close()
 
     return {"users": users}
+
 
 @app.get("/missions/{mission_id}/members")
 def get_mission_members(mission_id: int):
@@ -58,7 +63,7 @@ def get_mission_members(mission_id: int):
         WHERE mp.mission_id = %s
         ORDER BY u.name;
         """,
-        (mission_id,)
+        (mission_id,),
     )
 
     members = cursor.fetchall()
@@ -67,6 +72,7 @@ def get_mission_members(mission_id: int):
     conn.close()
 
     return {"members": members}
+
 
 @app.get("/missions/{mission_id}/hours")
 def get_mission_hours(mission_id: int):
@@ -93,7 +99,7 @@ def get_mission_hours(mission_id: int):
         GROUP BY u.id, u.name, u.email
         ORDER BY u.name;
         """,
-        (mission_id,)
+        (mission_id,),
     )
 
     hours = cursor.fetchall()
@@ -103,42 +109,37 @@ def get_mission_hours(mission_id: int):
 
     return {"hours": hours}
 
+
 @app.post("/missions/{mission_id}/check-in", status_code=201)
 def check_in(mission_id: int, request: CheckInRequest):
     conn = get_connection()
 
     try:
-        with conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                
-                # Lock mission and verify it is active
-                cursor.execute(
-                    """
+        with conn, conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            # Lock mission and verify it is active
+            cursor.execute(
+                """
                     SELECT started_at, ended_at
                     FROM missions
                     WHERE id = %s
                     FOR UPDATE;
                     """,
-                    (mission_id,)
+                (mission_id,),
+            )
+
+            mission = cursor.fetchone()
+
+            if mission is None:
+                raise HTTPException(status_code=404, detail="Mission not found")
+
+            if mission["started_at"] is None or mission["ended_at"] is not None:
+                raise HTTPException(
+                    status_code=409, detail="Cannot check in unless mission is active"
                 )
 
-                mission = cursor.fetchone()
-
-                if mission is None:
-                    raise HTTPException(
-                        status_code=404,
-                        detail="Mission not found"
-                    )
-
-                if mission["started_at"] is None or mission["ended_at"] is not None:
-                    raise HTTPException(
-                        status_code=409,
-                        detail="Cannot check in unless mission is active"
-                    )
-
-                # Verify the user belongs to the mission's team
-                cursor.execute(
-                    """
+            # Verify the user belongs to the mission's team
+            cursor.execute(
+                """
                     SELECT 1
                     FROM missions m
                     JOIN team_members tm
@@ -146,36 +147,34 @@ def check_in(mission_id: int, request: CheckInRequest):
                     WHERE m.id = %s
                       AND tm.user_id = %s;
                     """,
-                    (mission_id, request.user_id)
+                (mission_id, request.user_id),
+            )
+
+            if cursor.fetchone() is None:
+                raise HTTPException(
+                    status_code=404, detail="Mission or eligible team member not found"
                 )
 
-                if cursor.fetchone() is None:
-                    raise HTTPException(
-                        status_code=404,
-                        detail="Mission or eligible team member not found"
-                    )
-
-                # Prevent duplicate active check-ins
-                cursor.execute(
-                    """
+            # Prevent duplicate active check-ins
+            cursor.execute(
+                """
                     SELECT id
                     FROM mission_participation
                     WHERE mission_id = %s
                       AND user_id = %s
                       AND checked_out_at IS NULL;
                     """,
-                    (mission_id, request.user_id)
+                (mission_id, request.user_id),
+            )
+
+            if cursor.fetchone():
+                raise HTTPException(
+                    status_code=409, detail="User is already checked in"
                 )
 
-                if cursor.fetchone():
-                    raise HTTPException(
-                        status_code=409,
-                        detail="User is already checked in"
-                    )
-
-                # Create the participation session
-                cursor.execute(
-                    """
+            # Create the participation session
+            cursor.execute(
+                """
                     INSERT INTO mission_participation (
                         mission_id,
                         user_id
@@ -187,13 +186,13 @@ def check_in(mission_id: int, request: CheckInRequest):
                         user_id,
                         checked_in_at;
                     """,
-                    (mission_id, request.user_id)
-                )
+                (mission_id, request.user_id),
+            )
 
-                session = dict(cursor.fetchone())
+            session = dict(cursor.fetchone())
 
-                cursor.execute(
-                    """
+            cursor.execute(
+                """
                     INSERT INTO mission_activity_log (
                         mission_id,
                         user_id,
@@ -202,14 +201,13 @@ def check_in(mission_id: int, request: CheckInRequest):
                     )
                     VALUES (%s, %s, %s, %s);
                     """,
-                    (
-                        mission_id,
-                        request.user_id,
-                        "responder_checked_in",
-                        f"Responder {request.user_id} checked into mission {mission_id}"
-                    )
-                )
-
+                (
+                    mission_id,
+                    request.user_id,
+                    "responder_checked_in",
+                    f"Responder {request.user_id} checked into mission {mission_id}",
+                ),
+            )
 
         return {"message": "Check-in successful", "session": session}
 
@@ -218,22 +216,21 @@ def check_in(mission_id: int, request: CheckInRequest):
             raise
 
         raise HTTPException(
-            status_code=409,
-            detail="User is already checked in"
+            status_code=409, detail="User is already checked in"
         ) from error
 
     finally:
         conn.close()
+
 
 @app.post("/missions/{mission_id}/check-out")
 def check_out(mission_id: int, request: CheckInRequest):
     conn = get_connection()
 
     try:
-        with conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                cursor.execute(
-                    """
+        with conn, conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
                     UPDATE mission_participation
                     SET checked_out_at = NOW()
                     WHERE mission_id = %s
@@ -246,19 +243,16 @@ def check_out(mission_id: int, request: CheckInRequest):
                         checked_in_at,
                         checked_out_at;
                     """,
-                    (mission_id, request.user_id)
-                )
+                (mission_id, request.user_id),
+            )
 
-                session = cursor.fetchone()
+            session = cursor.fetchone()
 
-                if session is None:
-                    raise HTTPException(
-                        status_code=404,
-                        detail="No active check-in found"
-                    )
-                
-                cursor.execute(
-                    """
+            if session is None:
+                raise HTTPException(status_code=404, detail="No active check-in found")
+
+            cursor.execute(
+                """
                     INSERT INTO mission_activity_log (
                         mission_id,
                         user_id,
@@ -267,22 +261,19 @@ def check_out(mission_id: int, request: CheckInRequest):
                     )
                     VALUES (%s, %s, %s, %s);
                     """,
-                    (
-                        mission_id,
-                        request.user_id,
-                        "responder_checked_out",
-                        f"Responder {request.user_id} checked out of mission {mission_id}"
-                    )
-                )
+                (
+                    mission_id,
+                    request.user_id,
+                    "responder_checked_out",
+                    f"Responder {request.user_id} checked out of mission {mission_id}",
+                ),
+            )
 
-
-        return {
-            "message": "Check-out successful",
-            "session": dict(session)
-        }
+        return {"message": "Check-out successful", "session": dict(session)}
 
     finally:
         conn.close()
+
 
 @app.get("/missions")
 def get_missions():
@@ -319,6 +310,8 @@ def get_missions():
 class UpdateMissionLocationRequest(BaseModel):
     latitude: float
     longitude: float
+
+
 class CreateMissionRequest(BaseModel):
     name: str
     location: str
@@ -330,103 +323,78 @@ def create_mission(request: CreateMissionRequest):
     conn = get_connection()
 
     try:
-        with conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+        with conn, conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute("SELECT id FROM teams WHERE id = %s", (request.team_id,))
 
-                cursor.execute(
-                    "SELECT id FROM teams WHERE id = %s",
-                    (request.team_id,)
-                )
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Team not found")
 
-                if cursor.fetchone() is None:
-                    raise HTTPException(
-                        status_code=404,
-                        detail="Team not found"
-                    )
-
-                cursor.execute(
-                    """
+            cursor.execute(
+                """
                     INSERT INTO missions (name, location, team_id)
                     VALUES (%s, %s, %s)
                     RETURNING id, name, location, team_id, created_at;
                     """,
-                    (request.name, request.location, request.team_id)
-                )
+                (request.name, request.location, request.team_id),
+            )
 
-                mission = dict(cursor.fetchone())
+            mission = dict(cursor.fetchone())
 
-        return {
-            "message": "Mission created successfully",
-            "mission": mission
-        }
+        return {"message": "Mission created successfully", "mission": mission}
 
     finally:
         conn.close()
 
 
-
 @app.patch("/missions/{mission_id}/location")
-def update_mission_location(
-    mission_id: int,
-    request: UpdateMissionLocationRequest
-):
+def update_mission_location(mission_id: int, request: UpdateMissionLocationRequest):
     if not -90 <= request.latitude <= 90:
         raise HTTPException(
-            status_code=422,
-            detail="Latitude must be between -90 and 90"
+            status_code=422, detail="Latitude must be between -90 and 90"
         )
 
     if not -180 <= request.longitude <= 180:
         raise HTTPException(
-            status_code=422,
-            detail="Longitude must be between -180 and 180"
+            status_code=422, detail="Longitude must be between -180 and 180"
         )
 
     conn = get_connection()
 
     try:
-        with conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                cursor.execute(
-                    """
+        with conn, conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
                     UPDATE missions
                     SET latitude = %s,
                         longitude = %s
                     WHERE id = %s
                     RETURNING id, name, location, latitude, longitude;
                     """,
-                    (
-                        request.latitude,
-                        request.longitude,
-                        mission_id
-                    )
-                )
+                (request.latitude, request.longitude, mission_id),
+            )
 
-                mission = cursor.fetchone()
+            mission = cursor.fetchone()
 
-                if mission is None:
-                    raise HTTPException(
-                        status_code=404,
-                        detail="Mission not found"
-                    )
+            if mission is None:
+                raise HTTPException(status_code=404, detail="Mission not found")
 
         return {
             "message": "Mission location updated successfully",
-            "mission": dict(mission)
+            "mission": dict(mission),
         }
 
     finally:
         conn.close()
+
 
 @app.post("/missions/{mission_id}/start")
 def start_mission(mission_id: int):
     conn = get_connection()
 
     try:
-        with conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                cursor.execute(
-                    """
+        with conn, conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
                     UPDATE missions
                     SET started_at = NOW()
                     WHERE id = %s
@@ -434,30 +402,24 @@ def start_mission(mission_id: int):
                       AND ended_at IS NULL
                     RETURNING id, name, started_at, ended_at;
                     """,
-                    (mission_id,)
+                (mission_id,),
+            )
+
+            mission = cursor.fetchone()
+
+            if mission is None:
+                cursor.execute("SELECT id FROM missions WHERE id = %s", (mission_id,))
+
+                if cursor.fetchone() is None:
+                    raise HTTPException(status_code=404, detail="Mission not found")
+
+                raise HTTPException(
+                    status_code=409,
+                    detail="Mission has already been started or completed",
                 )
 
-                mission = cursor.fetchone()
-
-                if mission is None:
-                    cursor.execute(
-                        "SELECT id FROM missions WHERE id = %s",
-                        (mission_id,)
-                    )
-
-                    if cursor.fetchone() is None:
-                        raise HTTPException(
-                            status_code=404,
-                            detail="Mission not found"
-                        )
-
-                    raise HTTPException(
-                        status_code=409,
-                        detail="Mission has already been started or completed"
-                    )
-                
-                cursor.execute(
-                    """
+            cursor.execute(
+                """
                     INSERT INTO mission_activity_log (
                         mission_id,
                         event_type,
@@ -465,68 +427,60 @@ def start_mission(mission_id: int):
                     )
                     VALUES (%s, %s, %s);
                     """,
-                    (
-                        mission_id,
-                        "mission_started",
-                        f"Mission '{mission['name']}' was started"
-                    )
-                )
+                (
+                    mission_id,
+                    "mission_started",
+                    f"Mission '{mission['name']}' was started",
+                ),
+            )
 
-
-        return {
-            "message": "Mission started successfully",
-            "mission": dict(mission)
-        }
+        return {"message": "Mission started successfully", "mission": dict(mission)}
 
     finally:
         conn.close()
+
 
 @app.post("/missions/{mission_id}/complete")
 def complete_mission(mission_id: int):
     conn = get_connection()
 
     try:
-        with conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-
-                # Lock the mission row
-                cursor.execute(
-                    """
+        with conn, conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            # Lock the mission row
+            cursor.execute(
+                """
                     SELECT id
                     FROM missions
                     WHERE id = %s
                     FOR UPDATE;
                     """,
-                    (mission_id,)
-                )
+                (mission_id,),
+            )
 
-                if cursor.fetchone() is None:
-                    raise HTTPException(
-                        status_code=404,
-                        detail="Mission not found"
-                    )
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Mission not found")
 
-                # Prevent completion with active responders
-                cursor.execute(
-                    """
+            # Prevent completion with active responders
+            cursor.execute(
+                """
                     SELECT COUNT(*) AS active_count
                     FROM mission_participation
                     WHERE mission_id = %s
                       AND checked_out_at IS NULL;
                     """,
-                    (mission_id,)
+                (mission_id,),
+            )
+
+            active_count = cursor.fetchone()["active_count"]
+
+            if active_count > 0:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Cannot complete mission while responders are checked in",
                 )
 
-                active_count = cursor.fetchone()["active_count"]
-
-                if active_count > 0:
-                    raise HTTPException(
-                        status_code=409,
-                        detail="Cannot complete mission while responders are checked in"
-                    )
-
-                cursor.execute(
-                    """
+            cursor.execute(
+                """
                     UPDATE missions
                     SET ended_at = NOW()
                     WHERE id = %s
@@ -534,30 +488,21 @@ def complete_mission(mission_id: int):
                       AND ended_at IS NULL
                     RETURNING id, name, started_at, ended_at;
                     """,
-                    (mission_id,)
-                )
+                (mission_id,),
+            )
 
-                mission = cursor.fetchone()
+            mission = cursor.fetchone()
 
-                if mission is None:
-                    cursor.execute(
-                        "SELECT id FROM missions WHERE id = %s",
-                        (mission_id,)
-                    )
+            if mission is None:
+                cursor.execute("SELECT id FROM missions WHERE id = %s", (mission_id,))
 
-                    if cursor.fetchone() is None:
-                        raise HTTPException(
-                            status_code=404,
-                            detail="Mission not found"
-                        )
+                if cursor.fetchone() is None:
+                    raise HTTPException(status_code=404, detail="Mission not found")
 
-                    raise HTTPException(
-                        status_code=409,
-                        detail="Mission is not active"
-                    )
-                
-                cursor.execute(
-                    """
+                raise HTTPException(status_code=409, detail="Mission is not active")
+
+            cursor.execute(
+                """
                     INSERT INTO mission_activity_log (
                         mission_id,
                         event_type,
@@ -565,18 +510,14 @@ def complete_mission(mission_id: int):
                     )
                     VALUES (%s, %s, %s);
                     """,
-                    (
-                        mission_id,
-                        "mission_completed",
-                        f"Mission '{mission['name']}' was completed"
-                    )
-                )
+                (
+                    mission_id,
+                    "mission_completed",
+                    f"Mission '{mission['name']}' was completed",
+                ),
+            )
 
-
-        return {
-            "message": "Mission completed successfully",
-            "mission": dict(mission)
-        }
+        return {"message": "Mission completed successfully", "mission": dict(mission)}
 
     finally:
         conn.close()
@@ -602,7 +543,7 @@ def get_mission_team(mission_id: int):
                 WHERE m.id = %s
                 ORDER BY u.name;
                 """,
-                (mission_id,)
+                (mission_id,),
             )
 
             members = cursor.fetchall()
@@ -611,6 +552,7 @@ def get_mission_team(mission_id: int):
 
     finally:
         conn.close()
+
 
 @app.get("/teams")
 def get_teams():
@@ -633,6 +575,7 @@ def get_teams():
     finally:
         conn.close()
 
+
 class CreateTeamRequest(BaseModel):
     name: str
 
@@ -642,27 +585,23 @@ def create_team(request: CreateTeamRequest):
     conn = get_connection()
 
     try:
-        with conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                
-                cursor.execute(
-                    """
+        with conn, conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
                     INSERT INTO teams (name)
                     VALUES (%s)
                     RETURNING id, name, created_at;
                     """,
-                    (request.name,)
-                )
+                (request.name,),
+            )
 
-                team = dict(cursor.fetchone())
+            team = dict(cursor.fetchone())
 
-        return {
-            "message": "Team created successfully",
-            "team": team
-        }
+        return {"message": "Team created successfully", "team": team}
 
     finally:
         conn.close()
+
 
 class AddTeamMemberRequest(BaseModel):
     user_id: int
@@ -673,88 +612,70 @@ def add_team_member(team_id: int, request: AddTeamMemberRequest):
     conn = get_connection()
 
     try:
-        with conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+        with conn, conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            # Confirm team exists
+            cursor.execute("SELECT id FROM teams WHERE id = %s", (team_id,))
 
-                # Confirm team exists
-                cursor.execute(
-                    "SELECT id FROM teams WHERE id = %s",
-                    (team_id,)
-                )
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Team not found")
 
-                if cursor.fetchone() is None:
-                    raise HTTPException(
-                        status_code=404,
-                        detail="Team not found"
-                    )
+            # Confirm user exists
+            cursor.execute("SELECT id FROM users WHERE id = %s", (request.user_id,))
 
-                # Confirm user exists
-                cursor.execute(
-                    "SELECT id FROM users WHERE id = %s",
-                    (request.user_id,)
-                )
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail="User not found")
 
-                if cursor.fetchone() is None:
-                    raise HTTPException(
-                        status_code=404,
-                        detail="User not found"
-                    )
-
-                # Add user to team without duplicating membership
-                cursor.execute(
-                    """
+            # Add user to team without duplicating membership
+            cursor.execute(
+                """
                     INSERT INTO team_members (team_id, user_id)
                     VALUES (%s, %s)
                     ON CONFLICT (team_id, user_id) DO NOTHING
                     RETURNING team_id, user_id;
                     """,
-                    (team_id, request.user_id)
+                (team_id, request.user_id),
+            )
+
+            membership = cursor.fetchone()
+
+            if membership is None:
+                raise HTTPException(
+                    status_code=409, detail="User already belongs to this team"
                 )
-
-                membership = cursor.fetchone()
-
-                if membership is None:
-                    raise HTTPException(
-                        status_code=409,
-                        detail="User already belongs to this team"
-                    )
 
         return {
             "message": "Team member added successfully",
-            "membership": dict(membership)
+            "membership": dict(membership),
         }
 
     finally:
         conn.close()
+
 
 @app.delete("/teams/{team_id}/members/{user_id}")
 def remove_team_member(team_id: int, user_id: int):
     conn = get_connection()
 
     try:
-        with conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                cursor.execute(
-                    """
+        with conn, conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
                     DELETE FROM team_members
                     WHERE team_id = %s
                       AND user_id = %s
                     RETURNING team_id, user_id;
                     """,
-                    (team_id, user_id)
-                )
+                (team_id, user_id),
+            )
 
-                removed = cursor.fetchone()
+            removed = cursor.fetchone()
 
-                if removed is None:
-                    raise HTTPException(
-                        status_code=404,
-                        detail="Team membership not found"
-                    )
+            if removed is None:
+                raise HTTPException(status_code=404, detail="Team membership not found")
 
         return {
             "message": "Team member removed successfully",
-            "membership": dict(removed)
+            "membership": dict(removed),
         }
 
     finally:
@@ -773,14 +694,11 @@ def get_mission_activity(mission_id: int):
                 FROM missions
                 WHERE id = %s;
                 """,
-                (mission_id,)
+                (mission_id,),
             )
 
             if cursor.fetchone() is None:
-                raise HTTPException(
-                    status_code=404,
-                    detail="Mission not found"
-                )
+                raise HTTPException(status_code=404, detail="Mission not found")
 
             cursor.execute(
                 """
@@ -799,7 +717,7 @@ WHERE a.mission_id = %s
 ORDER BY a.created_at ASC, a.id ASC;
 
                 """,
-                (mission_id,)
+                (mission_id,),
             )
 
             events = [dict(row) for row in cursor.fetchall()]

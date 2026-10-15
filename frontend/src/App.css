@@ -1,4 +1,3 @@
-
 /* Mission Tracker — Operations Dashboard */
 
 .app-container {
@@ -70,7 +69,9 @@
 
 .stat-card-clickable {
   cursor: pointer;
-  transition: border-color 0.2s, transform 0.2s;
+  transition:
+    border-color 0.2s,
+    transform 0.2s;
 }
 
 .stat-card-clickable:hover {
@@ -117,7 +118,9 @@
   border-left: 4px solid transparent;
   border-radius: 10px;
   color: var(--text);
-  transition: background 0.2s, border-color 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
 }
 
 .history-mission h3 {
@@ -140,11 +143,11 @@
   border-left-color: #f59e0b;
 }
 
-.history-mission[role="button"] {
+.history-mission[role='button'] {
   cursor: pointer;
 }
 
-.history-mission[aria-pressed="true"] {
+.history-mission[aria-pressed='true'] {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -198,7 +201,7 @@
 }
 
 .mission-activity-event::before {
-  content: "";
+  content: '';
   position: absolute;
   left: -27px;
   top: 17px;
@@ -279,7 +282,6 @@
   }
 }
 
-
 /* =====================================
    OPERATIONS COMMAND CENTER — SIDEBAR
    ===================================== */
@@ -357,7 +359,9 @@
   color: #94a3b8;
   text-decoration: none;
   font-size: 14px;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 
 .sidebar-link:hover {
@@ -424,7 +428,6 @@
     display: none;
   }
 }
-
 
 /* Selected mission overview */
 
@@ -519,7 +522,6 @@
   }
 }
 
-
 /* =====================================
    GEOSPATIAL OPERATIONS — MISSION MAP
    ===================================== */
@@ -579,7 +581,6 @@
   color: var(--muted);
   font-size: 13px;
 }
-
 
 /* Mission map action buttons */
 

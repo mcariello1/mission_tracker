@@ -1,20 +1,17 @@
-
-import { useEffect, useRef, useState } from "react"
-import * as maplibregl from "maplibre-gl"
-import "maplibre-gl/dist/maplibre-gl.css"
-import { API_BASE_URL } from "../config"
+import { useEffect, useRef, useState } from 'react'
+import * as maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import { API_BASE_URL } from '../config'
 
 function MissionMap({ mission, onLocationSaved, onNotify }) {
-  
-    const mapContainer = useRef(null)
-    const mapInstance = useRef(null)
+  const mapContainer = useRef(null)
+  const mapInstance = useRef(null)
 
-    const savedMarkerInstance = useRef(null)
-    const proposedMarkerInstance = useRef(null)
+  const savedMarkerInstance = useRef(null)
+  const proposedMarkerInstance = useRef(null)
 
-    const [selectedCoordinates, setSelectedCoordinates] = useState(null)
-    const [isSaving, setIsSaving] = useState(false)
-
+  const [selectedCoordinates, setSelectedCoordinates] = useState(null)
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     if (!mapContainer.current || mapInstance.current) return
@@ -25,76 +22,67 @@ function MissionMap({ mission, onLocationSaved, onNotify }) {
         version: 8,
         sources: {
           terrain: {
-            type: "raster",
+            type: 'raster',
             tiles: [
-              "https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
-              "https://b.tile.opentopomap.org/{z}/{x}/{y}.png",
-              "https://c.tile.opentopomap.org/{z}/{x}/{y}.png"
+              'https://a.tile.opentopomap.org/{z}/{x}/{y}.png',
+              'https://b.tile.opentopomap.org/{z}/{x}/{y}.png',
+              'https://c.tile.opentopomap.org/{z}/{x}/{y}.png',
             ],
             tileSize: 256,
             attribution:
-              'Map data © OpenStreetMap contributors, SRTM | Map style © OpenTopoMap (CC-BY-SA)'
-          }
+              'Map data © OpenStreetMap contributors, SRTM | Map style © OpenTopoMap (CC-BY-SA)',
+          },
         },
         layers: [
           {
-            id: "terrain-layer",
-            type: "raster",
-            source: "terrain"
-          }
-        ]
+            id: 'terrain-layer',
+            type: 'raster',
+            source: 'terrain',
+          },
+        ],
       },
       center: [-120.17, 39.32],
-      zoom: 10
+      zoom: 10,
     })
 
-    map.addControl(
-      new maplibregl.NavigationControl(),
-      "top-right"
-    )
+    map.addControl(new maplibregl.NavigationControl(), 'top-right')
 
-    
+    map.on('click', (event) => {
+      const latitude = Number(event.lngLat.lat.toFixed(6))
+      const longitude = Number(event.lngLat.lng.toFixed(6))
 
-map.on("click", (event) => {
-  const latitude = Number(event.lngLat.lat.toFixed(6))
-  const longitude = Number(event.lngLat.lng.toFixed(6))
+      setSelectedCoordinates({
+        latitude,
+        longitude,
+      })
 
-  setSelectedCoordinates({
-    latitude,
-    longitude,
-  })
-
-  // Move or create the orange proposed-location marker
-  if (proposedMarkerInstance.current) {
-    proposedMarkerInstance.current.setLngLat([
-      longitude,
-      latitude,
-    ])
-  } else {
-    proposedMarkerInstance.current = new maplibregl.Marker({
-      color: "#f97316",
+      // Move or create the orange proposed-location marker
+      if (proposedMarkerInstance.current) {
+        proposedMarkerInstance.current.setLngLat([longitude, latitude])
+      } else {
+        proposedMarkerInstance.current = new maplibregl.Marker({
+          color: '#f97316',
+        })
+          .setLngLat([longitude, latitude])
+          .addTo(map)
+      }
     })
-      .setLngLat([longitude, latitude])
-      .addTo(map)
-  }
-})
-
 
     mapInstance.current = map
 
     return () => {
-  savedMarkerInstance.current?.remove()
-  proposedMarkerInstance.current?.remove()
+      savedMarkerInstance.current?.remove()
+      proposedMarkerInstance.current?.remove()
 
-  savedMarkerInstance.current = null
-  proposedMarkerInstance.current = null
+      savedMarkerInstance.current = null
+      proposedMarkerInstance.current = null
 
-  map.remove()
-  mapInstance.current = null
-}
+      map.remove()
+      mapInstance.current = null
+    }
   }, [])
   // Display the saved location of the selected mission
-  
+
   useEffect(() => {
     const map = mapInstance.current
 
@@ -124,7 +112,7 @@ map.on("click", (event) => {
 
     // Green marker represents the saved mission location
     savedMarkerInstance.current = new maplibregl.Marker({
-      color: "#22c55e",
+      color: '#22c55e',
     })
       .setLngLat([longitude, latitude])
       .addTo(map)
@@ -136,122 +124,115 @@ map.on("click", (event) => {
     })
   }, [mission?.id, mission?.latitude, mission?.longitude])
 
+  const saveMissionLocation = async () => {
+    if (!mission?.id || !selectedCoordinates || isSaving) return
 
-  
-const saveMissionLocation = async () => {
-  if (!mission?.id || !selectedCoordinates || isSaving) return
+    const confirmed = window.confirm(
+      `Save this location for "${mission.name}"?\n\n` +
+        `Latitude: ${selectedCoordinates.latitude}\n` +
+        `Longitude: ${selectedCoordinates.longitude}`,
+    )
 
-  const confirmed = window.confirm(
-    `Save this location for "${mission.name}"?\n\n` +
-    `Latitude: ${selectedCoordinates.latitude}\n` +
-    `Longitude: ${selectedCoordinates.longitude}`
-  )
+    if (!confirmed) return
+    setIsSaving(true)
 
-  if (!confirmed) return
-  setIsSaving(true)
-
-  try {
-
+    try {
       const response = await fetch(
         `${API_BASE_URL}/missions/${mission.id}/location`,
         {
-          method: "PATCH",
+          method: 'PATCH',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify(selectedCoordinates),
-        }
+        },
       )
 
       if (!response.ok) {
-  throw new Error("Failed to save mission location")
-}
+        throw new Error('Failed to save mission location')
+      }
 
-const data = await response.json()
+      const data = await response.json()
 
-// Update the saved mission in React
-onLocationSaved?.(data.mission)
+      // Update the saved mission in React
+      onLocationSaved?.(data.mission)
 
-// Remove the orange proposed marker
-proposedMarkerInstance.current?.remove()
-proposedMarkerInstance.current = null
+      // Remove the orange proposed marker
+      proposedMarkerInstance.current?.remove()
+      proposedMarkerInstance.current = null
 
-// Clear the proposed coordinates
-setSelectedCoordinates(null)
+      // Clear the proposed coordinates
+      setSelectedCoordinates(null)
 
-onNotify?.({
-  type: "success",
-  message: "Mission location saved successfully!",
-})
-        } catch (error) {
+      onNotify?.({
+        type: 'success',
+        message: 'Mission location saved successfully!',
+      })
+    } catch (error) {
       console.error(error)
       onNotify?.({
-        type: "error",
-        message: "Unable to save mission location.",
+        type: 'error',
+        message: 'Unable to save mission location.',
       })
     } finally {
       setIsSaving(false)
     }
   }
 
-
   return (
     <section className="mission-map-panel">
-      
-<div className="mission-map-header">
-  <div>
-    <span className="panel-eyebrow">GEOSPATIAL OPERATIONS</span>
-    <h2>{mission ? mission.name : "Mission Map"}</h2>
-    <p className="mission-map-location">
-      {mission
-        ? `Reported location: ${mission.location || "Not specified"}`
-        : "Select a mission to view its details"}
-    </p>
-  </div>
+      <div className="mission-map-header">
+        <div>
+          <span className="panel-eyebrow">GEOSPATIAL OPERATIONS</span>
+          <h2>{mission ? mission.name : 'Mission Map'}</h2>
+          <p className="mission-map-location">
+            {mission
+              ? `Reported location: ${mission.location || 'Not specified'}`
+              : 'Select a mission to view its details'}
+          </p>
+        </div>
 
-  <span className="mission-map-label">
-    {mission
-      ? mission.ended_at
-        ? "Completed Mission"
-        : mission.started_at
-          ? "Active Mission"
-          : "Not Started"
-      : "Topographic"}
-  </span>
-</div>
-
+        <span className="mission-map-label">
+          {mission
+            ? mission.ended_at
+              ? 'Completed Mission'
+              : mission.started_at
+                ? 'Active Mission'
+                : 'Not Started'
+            : 'Topographic'}
+        </span>
+      </div>
 
       <div ref={mapContainer} className="mission-map-container" />
       {selectedCoordinates && (
-  <p className="mission-map-location">
-    Selected coordinates: {selectedCoordinates.latitude},{" "}
-    {selectedCoordinates.longitude}
-  </p>
-)}
-        
-{mission && selectedCoordinates && (
-  <div className="mission-map-actions">
-    <button
-  type="button"
-  onClick={saveMissionLocation}
-  disabled={isSaving}
->
-  {isSaving ? "Saving..." : "Save Mission Location"}
-</button>
+        <p className="mission-map-location">
+          Selected coordinates: {selectedCoordinates.latitude},{' '}
+          {selectedCoordinates.longitude}
+        </p>
+      )}
 
-    <button
-      type="button"
-      onClick={() => {
-        proposedMarkerInstance.current?.remove()
-        proposedMarkerInstance.current = null
-        setSelectedCoordinates(null)
-      }}
-    >
-      Cancel Selection
-    </button>
-  </div>
-)}
+      {mission && selectedCoordinates && (
+        <div className="mission-map-actions">
+          <button
+            type="button"
+            onClick={saveMissionLocation}
+            disabled={isSaving}
+          >
+            {isSaving ? 'Saving...' : 'Save Mission Location'}
+          </button>
 
+          <button
+            type="button"
+            onClick={() => {
+              proposedMarkerInstance.current?.remove()
+              proposedMarkerInstance.current = null
+              setSelectedCoordinates(null)
+            }}
+          >
+            Cancel Selection
+          </button>
+        </div>
+      )}
     </section>
   )
 }

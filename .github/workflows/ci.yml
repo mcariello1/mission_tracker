@@ -45,6 +45,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      - name: Install Ruff
+        run: python -m pip install ruff==0.17.1
+
+      - name: Check Python linting
+        run: ruff check backend/
+
+      - name: Check Python formatting
+        run: ruff format backend/ --check
 
       - name: Initialize test database
         env:
@@ -73,6 +81,18 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
+
+      - name: Check frontend linting
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Check frontend formatting
+        working-directory: frontend
+        run: npx prettier --check "src/**/*.{js,jsx,css}" "tests/**/*.{js,ts}"
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
 
       - name: Install Playwright browsers
         working-directory: frontend

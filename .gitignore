@@ -14,3 +14,16 @@ test-results/
 
 # Frontend dependencies
 node_modules/
+
+# Additional Python generated files
+*.pyo
+.ruff_cache/
+
+# Python virtual environments
+venv/
+
+# Frontend build output
+dist/
+
+# Allow example environment files
+!.env.example

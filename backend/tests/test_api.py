@@ -1,8 +1,10 @@
-from fastapi.testclient import TestClient
-from backend.main import app
-import pytest
-from psycopg2.errors import UniqueViolation
 from concurrent.futures import ThreadPoolExecutor
+
+import pytest
+from fastapi.testclient import TestClient
+from psycopg2.errors import UniqueViolation
+
+from backend.main import app
 
 client = TestClient(app)
 
@@ -12,6 +14,7 @@ def test_health_check():
 
     assert response.status_code == 200
     assert response.json() == {"status": "healthy"}
+
 
 def test_get_teams():
     response = client.get("/teams")
@@ -28,15 +31,13 @@ def test_get_teams():
         assert "name" in team
         assert "created_at" in team
 
+
 from backend.database import get_connection
 
 
 def test_create_team():
     # Create a team through the API
-    response = client.post(
-        "/teams",
-        json={"name": "Automated Test Rescue Team"}
-    )
+    response = client.post("/teams", json={"name": "Automated Test Rescue Team"})
 
     assert response.status_code == 201
 
@@ -52,10 +53,7 @@ def test_create_team():
 
     try:
         with conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT name FROM teams WHERE id = %s",
-                (team_id,)
-            )
+            cursor.execute("SELECT name FROM teams WHERE id = %s", (team_id,))
 
             result = cursor.fetchone()
 
@@ -69,23 +67,18 @@ def test_create_team():
         cleanup_conn = get_connection()
 
         try:
-            with cleanup_conn:
-                with cleanup_conn.cursor() as cursor:
-                    cursor.execute(
-                        "DELETE FROM teams WHERE id = %s",
-                        (team_id,)
-                    )
+            with cleanup_conn, cleanup_conn.cursor() as cursor:
+                cursor.execute("DELETE FROM teams WHERE id = %s", (team_id,))
         finally:
             cleanup_conn.close()
 
+
 def test_assign_member_to_nonexistent_team():
-    response = client.post(
-        "/teams/999999/members",
-        json={"user_id": 1}
-    )
+    response = client.post("/teams/999999/members", json={"user_id": 1})
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Team not found"
+
 
 def test_get_team_members_for_new_team(test_team):
     response = client.get("/missions")
@@ -96,10 +89,7 @@ def test_get_team_members_for_new_team(test_team):
 
     try:
         with conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT name FROM teams WHERE id = %s",
-                (test_team,)
-            )
+            cursor.execute("SELECT name FROM teams WHERE id = %s", (test_team,))
 
             result = cursor.fetchone()
 
@@ -108,11 +98,9 @@ def test_get_team_members_for_new_team(test_team):
     finally:
         conn.close()
 
+
 def test_assign_user_to_team(test_team, test_user):
-    response = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
-    )
+    response = client.post(f"/teams/{test_team}/members", json={"user_id": test_user})
 
     assert response.status_code == 201
 
@@ -122,40 +110,36 @@ def test_assign_user_to_team(test_team, test_user):
     assert data["membership"]["team_id"] == test_team
     assert data["membership"]["user_id"] == test_user
 
+
 def test_duplicate_team_membership(test_team, test_user):
     # First assignment should succeed
     first_response = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
+        f"/teams/{test_team}/members", json={"user_id": test_user}
     )
 
     assert first_response.status_code == 201
 
     # Second assignment should be rejected
     second_response = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
+        f"/teams/{test_team}/members", json={"user_id": test_user}
     )
 
     assert second_response.status_code == 409
 
-    assert second_response.json()["detail"] == (
-        "User already belongs to this team"
-    )
+    assert second_response.json()["detail"] == ("User already belongs to this team")
+
 
 def test_mission_check_in(test_mission, test_team, test_user):
     # Assign the user to the mission's team
     assignment_response = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
+        f"/teams/{test_team}/members", json={"user_id": test_user}
     )
 
     assert assignment_response.status_code == 201
 
     # Check the user into the mission
     response = client.post(
-        f"/missions/{test_mission}/check-in",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-in", json={"user_id": test_user}
     )
 
     assert response.status_code == 201
@@ -172,7 +156,7 @@ def test_mission_check_in(test_mission, test_team, test_user):
                 WHERE mission_id = %s
                   AND user_id = %s;
                 """,
-                (test_mission, test_user)
+                (test_mission, test_user),
             )
 
             result = cursor.fetchone()
@@ -184,27 +168,25 @@ def test_mission_check_in(test_mission, test_team, test_user):
     finally:
         conn.close()
 
+
 def test_duplicate_mission_check_in(test_mission, test_team, test_user):
     # Assign the user to the mission's team
     assignment_response = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
+        f"/teams/{test_team}/members", json={"user_id": test_user}
     )
 
     assert assignment_response.status_code == 201
 
     # First check-in should succeed
     first_response = client.post(
-        f"/missions/{test_mission}/check-in",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-in", json={"user_id": test_user}
     )
 
     assert first_response.status_code == 201
 
     # Second check-in should be rejected
     second_response = client.post(
-        f"/missions/{test_mission}/check-in",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-in", json={"user_id": test_user}
     )
 
     assert second_response.status_code == 409
@@ -222,7 +204,7 @@ def test_duplicate_mission_check_in(test_mission, test_team, test_user):
                   AND user_id = %s
                   AND checked_out_at IS NULL;
                 """,
-                (test_mission, test_user)
+                (test_mission, test_user),
             )
 
             active_sessions = cursor.fetchone()[0]
@@ -232,55 +214,52 @@ def test_duplicate_mission_check_in(test_mission, test_team, test_user):
     finally:
         conn.close()
 
+
 def test_database_prevents_duplicate_active_checkins(test_mission, test_user):
     conn = get_connection()
 
     try:
-        with pytest.raises(UniqueViolation):
-            with conn:
-                with conn.cursor() as cursor:
-                    # First active check-in succeeds
-                    cursor.execute(
-                        """
+        with pytest.raises(UniqueViolation), conn, conn.cursor() as cursor:
+            # First active check-in succeeds
+            cursor.execute(
+                """
                         INSERT INTO mission_participation (mission_id, user_id)
                         VALUES (%s, %s);
                         """,
-                        (test_mission, test_user)
-                    )
+                (test_mission, test_user),
+            )
 
-                    # Second active check-in must fail
-                    cursor.execute(
-                        """
+            # Second active check-in must fail
+            cursor.execute(
+                """
                         INSERT INTO mission_participation (mission_id, user_id)
                         VALUES (%s, %s);
                         """,
-                        (test_mission, test_user)
-                    )
+                (test_mission, test_user),
+            )
 
     finally:
         conn.close()
 
+
 def test_mission_check_out(test_mission, test_team, test_user):
     # Assign the user to the mission's team
     assignment_response = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
+        f"/teams/{test_team}/members", json={"user_id": test_user}
     )
 
     assert assignment_response.status_code == 201
 
     # Check the user into the mission
     check_in_response = client.post(
-        f"/missions/{test_mission}/check-in",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-in", json={"user_id": test_user}
     )
 
     assert check_in_response.status_code == 201
 
     # Check the user out of the mission
     check_out_response = client.post(
-        f"/missions/{test_mission}/check-out",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-out", json={"user_id": test_user}
     )
 
     assert check_out_response.status_code == 200
@@ -297,7 +276,7 @@ def test_mission_check_out(test_mission, test_team, test_user):
                 WHERE mission_id = %s
                   AND user_id = %s;
                 """,
-                (test_mission, test_user)
+                (test_mission, test_user),
             )
 
             result = cursor.fetchone()
@@ -315,19 +294,18 @@ def test_mission_check_out(test_mission, test_team, test_user):
     finally:
         conn.close()
 
+
 def test_check_out_without_check_in(test_mission, test_team, test_user):
     # Assign the user to the mission's team
     assignment_response = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
+        f"/teams/{test_team}/members", json={"user_id": test_user}
     )
 
     assert assignment_response.status_code == 201
 
     # Attempt to check out without checking in
     response = client.post(
-        f"/missions/{test_mission}/check-out",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-out", json={"user_id": test_user}
     )
 
     # The API should reject this request
@@ -345,7 +323,7 @@ def test_check_out_without_check_in(test_mission, test_team, test_user):
                 WHERE mission_id = %s
                   AND user_id = %s;
                 """,
-                (test_mission, test_user)
+                (test_mission, test_user),
             )
 
             count = cursor.fetchone()[0]
@@ -355,12 +333,10 @@ def test_check_out_without_check_in(test_mission, test_team, test_user):
     finally:
         conn.close()
 
+
 def test_mission_hours_calculation(test_mission, test_team, test_user):
     # Assign the user to the mission's team
-    response = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
-    )
+    response = client.post(f"/teams/{test_team}/members", json={"user_id": test_user})
 
     assert response.status_code == 201
 
@@ -368,10 +344,9 @@ def test_mission_hours_calculation(test_mission, test_team, test_user):
     conn = get_connection()
 
     try:
-        with conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
+        with conn, conn.cursor() as cursor:
+            cursor.execute(
+                """
                     INSERT INTO mission_participation
                         (mission_id, user_id, checked_in_at, checked_out_at)
                     VALUES
@@ -386,18 +361,13 @@ def test_mission_hours_calculation(test_mission, test_team, test_user):
                             TIMESTAMPTZ '2026-10-02 12:30:00+00'
                         );
                     """,
-                    (
-                        test_mission, test_user,
-                        test_mission, test_user
-                    )
-                )
+                (test_mission, test_user, test_mission, test_user),
+            )
     finally:
         conn.close()
 
     # Request calculated hours through FastAPI
-    response = client.get(
-        f"/missions/{test_mission}/hours"
-    )
+    response = client.get(f"/missions/{test_mission}/hours")
 
     assert response.status_code == 200
 
@@ -405,10 +375,7 @@ def test_mission_hours_calculation(test_mission, test_team, test_user):
     hours = data["hours"]
 
     # Find the temporary user's hours
-    user_hours = next(
-        member for member in hours
-        if member["id"] == test_user
-    )
+    user_hours = next(member for member in hours if member["id"] == test_user)
 
     assert user_hours["session_count"] == 2
     assert abs(float(user_hours["total_hours"]) - 5.5) < 0.001
@@ -416,10 +383,7 @@ def test_mission_hours_calculation(test_mission, test_team, test_user):
 
 def test_active_session_excluded_from_hours(test_mission, test_team, test_user):
     # Assign the user to the mission's team
-    response = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
-    )
+    response = client.post(f"/teams/{test_team}/members", json={"user_id": test_user})
 
     assert response.status_code == 201
 
@@ -427,10 +391,9 @@ def test_active_session_excluded_from_hours(test_mission, test_team, test_user):
     conn = get_connection()
 
     try:
-        with conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
+        with conn, conn.cursor() as cursor:
+            cursor.execute(
+                """
                     INSERT INTO mission_participation
                         (mission_id, user_id, checked_in_at, checked_out_at)
                     VALUES
@@ -445,48 +408,35 @@ def test_active_session_excluded_from_hours(test_mission, test_team, test_user):
                             NULL
                         );
                     """,
-                    (
-                        test_mission, test_user,
-                        test_mission, test_user
-                    )
-                )
+                (test_mission, test_user, test_mission, test_user),
+            )
     finally:
         conn.close()
 
     # Retrieve calculated hours
-    response = client.get(
-        f"/missions/{test_mission}/hours"
-    )
+    response = client.get(f"/missions/{test_mission}/hours")
 
     assert response.status_code == 200
 
     data = response.json()
 
-    user_hours = next(
-        member for member in data["hours"]
-        if member["id"] == test_user
-    )
+    user_hours = next(member for member in data["hours"] if member["id"] == test_user)
 
     # Only the completed session should count
     assert user_hours["session_count"] == 1
     assert abs(float(user_hours["total_hours"]) - 2.0) < 0.001
 
 
-
 def test_concurrent_mission_checkins(test_mission, test_team, test_user):
     # Assign the user to the mission's team
-    response = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
-    )
+    response = client.post(f"/teams/{test_team}/members", json={"user_id": test_user})
 
     assert response.status_code == 201
 
     # Each worker sends a check-in request
     def check_in():
         return client.post(
-            f"/missions/{test_mission}/check-in",
-            json={"user_id": test_user}
+            f"/missions/{test_mission}/check-in", json={"user_id": test_user}
         )
 
     # Send two requests concurrently
@@ -512,7 +462,7 @@ def test_concurrent_mission_checkins(test_mission, test_team, test_user):
                   AND user_id = %s
                   AND checked_out_at IS NULL;
                 """,
-                (test_mission, test_user)
+                (test_mission, test_user),
             )
 
             assert cursor.fetchone()[0] == 1
@@ -526,52 +476,42 @@ def test_cannot_check_in_before_mission_starts(test_mission, test_user):
     conn = get_connection()
 
     try:
-        with conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
+        with conn, conn.cursor() as cursor:
+            cursor.execute(
+                """
                     UPDATE missions
                     SET started_at = NULL
                     WHERE id = %s;
                     """,
-                    (test_mission,)
-                )
+                (test_mission,),
+            )
     finally:
         conn.close()
 
     # Attempt to check in before the mission starts
     response = client.post(
-        f"/missions/{test_mission}/check-in",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-in", json={"user_id": test_user}
     )
 
     assert response.status_code == 409
-    assert response.json()["detail"] == (
-        "Cannot check in unless mission is active"
-    )
+    assert response.json()["detail"] == ("Cannot check in unless mission is active")
 
 
 def test_cannot_complete_mission_with_active_responders(
     test_mission, test_team, test_user
 ):
     # Add the responder to the mission's team
-    assignment = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
-    )
+    assignment = client.post(f"/teams/{test_team}/members", json={"user_id": test_user})
     assert assignment.status_code == 201
 
     # Check the responder into the active mission
     check_in = client.post(
-        f"/missions/{test_mission}/check-in",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-in", json={"user_id": test_user}
     )
     assert check_in.status_code == 201
 
     # Attempt to complete the mission
-    response = client.post(
-        f"/missions/{test_mission}/complete"
-    )
+    response = client.post(f"/missions/{test_mission}/complete")
 
     # Completion must be rejected
     assert response.status_code == 409
@@ -584,30 +524,23 @@ def test_complete_mission_after_responder_checks_out(
     test_mission, test_team, test_user
 ):
     # Assign responder to the mission's team
-    assignment = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
-    )
+    assignment = client.post(f"/teams/{test_team}/members", json={"user_id": test_user})
     assert assignment.status_code == 201
 
     # Check in
     check_in = client.post(
-        f"/missions/{test_mission}/check-in",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-in", json={"user_id": test_user}
     )
     assert check_in.status_code == 201
 
     # Check out
     check_out = client.post(
-        f"/missions/{test_mission}/check-out",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-out", json={"user_id": test_user}
     )
     assert check_out.status_code == 200
 
     # Complete the mission
-    completion = client.post(
-        f"/missions/{test_mission}/complete"
-    )
+    completion = client.post(f"/missions/{test_mission}/complete")
     assert completion.status_code == 200
 
     # Verify the mission is completed
@@ -615,33 +548,23 @@ def test_complete_mission_after_responder_checks_out(
     assert mission["ended_at"] is not None
 
 
-def test_cannot_check_in_after_mission_completed(
-    test_mission, test_team, test_user
-):
+def test_cannot_check_in_after_mission_completed(test_mission, test_team, test_user):
     # Assign responder to the mission's team
-    assignment = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
-    )
+    assignment = client.post(f"/teams/{test_team}/members", json={"user_id": test_user})
     assert assignment.status_code == 201
 
     # Complete the active mission
-    completion = client.post(
-        f"/missions/{test_mission}/complete"
-    )
+    completion = client.post(f"/missions/{test_mission}/complete")
     assert completion.status_code == 200
 
     # Attempt to check in after completion
     response = client.post(
-        f"/missions/{test_mission}/check-in",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-in", json={"user_id": test_user}
     )
 
     # Completed missions must reject check-ins
     assert response.status_code == 409
-    assert response.json()["detail"] == (
-        "Cannot check in unless mission is active"
-    )
+    assert response.json()["detail"] == ("Cannot check in unless mission is active")
 
 
 def test_start_mission_creates_activity_event(test_mission):
@@ -649,26 +572,20 @@ def test_start_mission_creates_activity_event(test_mission):
     conn = get_connection()
 
     try:
-        with conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    "UPDATE missions SET started_at = NULL WHERE id = %s",
-                    (test_mission,)
-                )
+        with conn, conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE missions SET started_at = NULL WHERE id = %s", (test_mission,)
+            )
     finally:
         conn.close()
 
     # Start the mission through the API
-    response = client.post(
-        f"/missions/{test_mission}/start"
-    )
+    response = client.post(f"/missions/{test_mission}/start")
 
     assert response.status_code == 200
 
     # Retrieve the mission activity
-    activity_response = client.get(
-        f"/missions/{test_mission}/activity"
-    )
+    activity_response = client.get(f"/missions/{test_mission}/activity")
 
     assert activity_response.status_code == 200
 
@@ -683,16 +600,12 @@ def test_start_mission_creates_activity_event(test_mission):
 
 def test_complete_mission_creates_activity_event(test_mission):
     # Complete an active mission through the API
-    response = client.post(
-        f"/missions/{test_mission}/complete"
-    )
+    response = client.post(f"/missions/{test_mission}/complete")
 
     assert response.status_code == 200
 
     # Retrieve the mission activity
-    activity_response = client.get(
-        f"/missions/{test_mission}/activity"
-    )
+    activity_response = client.get(f"/missions/{test_mission}/activity")
 
     assert activity_response.status_code == 200
 
@@ -705,30 +618,21 @@ def test_complete_mission_creates_activity_event(test_mission):
     assert events[0]["user_id"] is None
 
 
-
-def test_check_in_creates_activity_event(
-    test_mission, test_team, test_user
-):
+def test_check_in_creates_activity_event(test_mission, test_team, test_user):
     # Assign responder to the mission's team
-    assignment = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
-    )
+    assignment = client.post(f"/teams/{test_team}/members", json={"user_id": test_user})
 
     assert assignment.status_code == 201
 
     # Check the responder into the mission
     response = client.post(
-        f"/missions/{test_mission}/check-in",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-in", json={"user_id": test_user}
     )
 
     assert response.status_code == 201
 
     # Retrieve activity history
-    activity_response = client.get(
-        f"/missions/{test_mission}/activity"
-    )
+    activity_response = client.get(f"/missions/{test_mission}/activity")
 
     assert activity_response.status_code == 200
 
@@ -741,35 +645,25 @@ def test_check_in_creates_activity_event(
     assert events[0]["responder_name"] == "Test Rescue User"
 
 
-
-def test_check_out_creates_activity_event(
-    test_mission, test_team, test_user
-):
+def test_check_out_creates_activity_event(test_mission, test_team, test_user):
     # Assign responder to the mission's team
-    assignment = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
-    )
+    assignment = client.post(f"/teams/{test_team}/members", json={"user_id": test_user})
     assert assignment.status_code == 201
 
     # Check the responder in
     check_in = client.post(
-        f"/missions/{test_mission}/check-in",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-in", json={"user_id": test_user}
     )
     assert check_in.status_code == 201
 
     # Check the responder out
     check_out = client.post(
-        f"/missions/{test_mission}/check-out",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-out", json={"user_id": test_user}
     )
     assert check_out.status_code == 200
 
     # Retrieve the Activity Log
-    activity_response = client.get(
-        f"/missions/{test_mission}/activity"
-    )
+    activity_response = client.get(f"/missions/{test_mission}/activity")
     assert activity_response.status_code == 200
 
     events = activity_response.json()["events"]
@@ -785,35 +679,27 @@ def test_check_out_creates_activity_event(
     assert events[1]["responder_name"] == "Test Rescue User"
 
 
-
 def test_duplicate_check_in_does_not_create_activity(
     test_mission, test_team, test_user
 ):
     # Assign responder to the mission's team
-    assignment = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
-    )
+    assignment = client.post(f"/teams/{test_team}/members", json={"user_id": test_user})
     assert assignment.status_code == 201
 
     # First check-in should succeed
     first_response = client.post(
-        f"/missions/{test_mission}/check-in",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-in", json={"user_id": test_user}
     )
     assert first_response.status_code == 201
 
     # Duplicate check-in should be rejected
     duplicate_response = client.post(
-        f"/missions/{test_mission}/check-in",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-in", json={"user_id": test_user}
     )
     assert duplicate_response.status_code == 409
 
     # Verify only the successful check-in was logged
-    activity_response = client.get(
-        f"/missions/{test_mission}/activity"
-    )
+    activity_response = client.get(f"/missions/{test_mission}/activity")
     assert activity_response.status_code == 200
 
     events = activity_response.json()["events"]
@@ -823,33 +709,23 @@ def test_duplicate_check_in_does_not_create_activity(
     assert events[0]["user_id"] == test_user
 
 
-def test_failed_completion_does_not_create_activity(
-    test_mission, test_team, test_user
-):
+def test_failed_completion_does_not_create_activity(test_mission, test_team, test_user):
     # Assign responder to the mission's team
-    assignment = client.post(
-        f"/teams/{test_team}/members",
-        json={"user_id": test_user}
-    )
+    assignment = client.post(f"/teams/{test_team}/members", json={"user_id": test_user})
     assert assignment.status_code == 201
 
     # Check the responder in
     check_in = client.post(
-        f"/missions/{test_mission}/check-in",
-        json={"user_id": test_user}
+        f"/missions/{test_mission}/check-in", json={"user_id": test_user}
     )
     assert check_in.status_code == 201
 
     # Attempt to complete the mission
-    completion = client.post(
-        f"/missions/{test_mission}/complete"
-    )
+    completion = client.post(f"/missions/{test_mission}/complete")
     assert completion.status_code == 409
 
     # Retrieve the Activity Log
-    activity_response = client.get(
-        f"/missions/{test_mission}/activity"
-    )
+    activity_response = client.get(f"/missions/{test_mission}/activity")
     assert activity_response.status_code == 200
 
     events = activity_response.json()["events"]
@@ -859,29 +735,19 @@ def test_failed_completion_does_not_create_activity(
     assert events[0]["event_type"] == "responder_checked_in"
 
     # No mission completion event should exist
-    assert not any(
-        event["event_type"] == "mission_completed"
-        for event in events
-    )
+    assert not any(event["event_type"] == "mission_completed" for event in events)
 
 
 def test_update_mission_location():
     # Create a team
-    team_response = client.post(
-        "/teams",
-        json={"name": "Location Test Team"}
-    )
+    team_response = client.post("/teams", json={"name": "Location Test Team"})
     assert team_response.status_code == 201
     team_id = team_response.json()["team"]["id"]
 
     # Create a mission
     mission_response = client.post(
         "/missions",
-        json={
-            "name": "Map Location Test",
-            "location": "Truckee",
-            "team_id": team_id
-        }
+        json={"name": "Map Location Test", "location": "Truckee", "team_id": team_id},
     )
     assert mission_response.status_code == 201
     mission_id = mission_response.json()["mission"]["id"]
@@ -889,10 +755,7 @@ def test_update_mission_location():
     # Save coordinates
     response = client.patch(
         f"/missions/{mission_id}/location",
-        json={
-            "latitude": 39.3279,
-            "longitude": -120.1833
-        }
+        json={"latitude": 39.3279, "longitude": -120.1833},
     )
 
     assert response.status_code == 200
@@ -907,8 +770,7 @@ def test_update_mission_location():
     assert missions_response.status_code == 200
 
     saved_mission = next(
-        m for m in missions_response.json()["missions"]
-        if m["id"] == mission_id
+        m for m in missions_response.json()["missions"] if m["id"] == mission_id
     )
 
     assert saved_mission["latitude"] == 39.3279
@@ -920,23 +782,16 @@ def test_reject_invalid_mission_coordinates(test_mission):
 
     response = client.patch(
         f"/missions/{mission_id}/location",
-        json={
-            "latitude": 100,
-            "longitude": -120.1833
-        }
+        json={"latitude": 100, "longitude": -120.1833},
     )
 
     assert response.status_code == 422
 
 
-
 def test_update_nonexistent_mission_location():
     response = client.patch(
         "/missions/999999999/location",
-        json={
-            "latitude": 39.3279,
-            "longitude": -120.1833
-        }
+        json={"latitude": 39.3279, "longitude": -120.1833},
     )
 
     assert response.status_code == 404

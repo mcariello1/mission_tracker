@@ -4,6 +4,7 @@ import os
 os.environ["DB_NAME"] = "mission_tracker_test"
 
 import pytest
+
 from backend.database import get_connection
 
 
@@ -15,11 +16,10 @@ def verify_test_database():
         database_name = conn.info.dbname
 
         if database_name != "mission_tracker_test":
-            pytest.exit(
-                f"Unsafe database connection: {database_name}"
-            )
+            pytest.exit(f"Unsafe database connection: {database_name}")
     finally:
         conn.close()
+
 
 @pytest.fixture
 def test_team():
@@ -30,18 +30,17 @@ def test_team():
         if conn.info.dbname != "mission_tracker_test":
             raise RuntimeError("Refusing to modify a non-test database")
 
-        with conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
+        with conn, conn.cursor() as cursor:
+            cursor.execute(
+                """
                     INSERT INTO teams (name)
                     VALUES (%s)
                     RETURNING id;
                     """,
-                    ("Temporary Test Team",)
-                )
+                ("Temporary Test Team",),
+            )
 
-                team_id = cursor.fetchone()[0]
+            team_id = cursor.fetchone()[0]
     finally:
         conn.close()
 
@@ -57,15 +56,12 @@ def test_team():
             if cleanup_conn.info.dbname != "mission_tracker_test":
                 raise RuntimeError("Refusing to clean up a non-test database")
 
-            with cleanup_conn:
-                with cleanup_conn.cursor() as cursor:
-                    cursor.execute(
-                        "DELETE FROM teams WHERE id = %s",
-                        (team_id,)
-                    )
+            with cleanup_conn, cleanup_conn.cursor() as cursor:
+                cursor.execute("DELETE FROM teams WHERE id = %s", (team_id,))
         finally:
             cleanup_conn.close()
-    
+
+
 @pytest.fixture
 def test_user():
     conn = get_connection()
@@ -74,18 +70,17 @@ def test_user():
         if conn.info.dbname != "mission_tracker_test":
             raise RuntimeError("Refusing to modify a non-test database")
 
-        with conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
+        with conn, conn.cursor() as cursor:
+            cursor.execute(
+                """
                     INSERT INTO users (name, email)
                     VALUES (%s, %s)
                     RETURNING id;
                     """,
-                    ("Test Rescue User", "test-rescue@example.com")
-                )
+                ("Test Rescue User", "test-rescue@example.com"),
+            )
 
-                user_id = cursor.fetchone()[0]
+            user_id = cursor.fetchone()[0]
     finally:
         conn.close()
 
@@ -99,30 +94,24 @@ def test_user():
             if cleanup_conn.info.dbname != "mission_tracker_test":
                 raise RuntimeError("Refusing to clean up a non-test database")
 
-            with cleanup_conn:
-                with cleanup_conn.cursor() as cursor:
-                    cursor.execute(
-                        "DELETE FROM team_members WHERE user_id = %s",
-                        (user_id,)
-                    )
-                    cursor.execute(
-                            """
+            with cleanup_conn, cleanup_conn.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM team_members WHERE user_id = %s", (user_id,)
+                )
+                cursor.execute(
+                    """
                             UPDATE mission_activity_log
                             SET user_id = NULL
                             WHERE user_id = %s
                             """,
-                            (user_id,)
-                        )
+                    (user_id,),
+                )
 
-                    cursor.execute(
-                        "DELETE FROM users WHERE id = %s",
-                        (user_id,)
-                    )
-
-
+                cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
 
         finally:
             cleanup_conn.close()
+
 
 @pytest.fixture
 def test_mission(test_team):
@@ -132,11 +121,9 @@ def test_mission(test_team):
         if conn.info.dbname != "mission_tracker_test":
             raise RuntimeError("Refusing to modify a non-test database")
 
-        with conn:
-            with conn.cursor() as cursor:
-                
-                cursor.execute(
-                    """
+        with conn, conn.cursor() as cursor:
+            cursor.execute(
+                """
                     INSERT INTO missions (
                         name,
                         location,
@@ -146,15 +133,10 @@ def test_mission(test_team):
                     VALUES (%s, %s, %s, NOW())
                     RETURNING id;
                     """,
-                    (
-                        "Automated Test Mission",
-                        "Donner Summit",
-                        test_team
-                    )
-                )
+                ("Automated Test Mission", "Donner Summit", test_team),
+            )
 
-
-                mission_id = cursor.fetchone()[0]
+            mission_id = cursor.fetchone()[0]
     finally:
         conn.close()
 
@@ -168,25 +150,18 @@ def test_mission(test_team):
             if cleanup_conn.info.dbname != "mission_tracker_test":
                 raise RuntimeError("Refusing to modify a non-test database")
 
-            with cleanup_conn:
-                with cleanup_conn.cursor() as cursor:
-                    
-                    cursor.execute(
-                        "DELETE FROM mission_participation WHERE mission_id = %s",
-                        (mission_id,)
-                    )
+            with cleanup_conn, cleanup_conn.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM mission_participation WHERE mission_id = %s",
+                    (mission_id,),
+                )
 
-                    cursor.execute(
-                        "DELETE FROM mission_activity_log WHERE mission_id = %s",
-                        (mission_id,)
-                    )
-                    
+                cursor.execute(
+                    "DELETE FROM mission_activity_log WHERE mission_id = %s",
+                    (mission_id,),
+                )
 
-                    cursor.execute(
-                        "DELETE FROM missions WHERE id = %s",
-                        (mission_id,)
-                    )
-
+                cursor.execute("DELETE FROM missions WHERE id = %s", (mission_id,))
 
         finally:
             cleanup_conn.close()
