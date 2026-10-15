@@ -6,12 +6,11 @@ export default async function globalTeardown() {
 
   const cleanupScript = path.join(
     projectRoot,
-    'backend/tests/cleanup_playwright.py'
+    'backend/tests/cleanup_playwright.py',
   )
 
   const python =
-    process.env.PYTHON_PATH ??
-    path.join(projectRoot, '.venv/bin/python')
+    process.env.PYTHON_PATH ?? path.join(projectRoot, '.venv/bin/python')
 
   execFileSync(python, [cleanupScript], {
     cwd: projectRoot,
